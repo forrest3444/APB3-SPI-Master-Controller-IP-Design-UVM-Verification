@@ -1,0 +1,34 @@
+*.log
+*.jou
+*.wlf
+*.vcd
+*.vvp
+*.swp
+*.tmp
+*.bak
+*.out
+*.o
+*.a
+*.so
+
+# Simulator and waveform outputs
+simv
+simv.daidir/
+csrc/
+INCA_libs/
+work/
+xcelium.d/
+questa_lib/
+transcript
+vsim.wlf
+waves.shm/
+
+# Coverage and reports
+covhtmlreport/
+coverage/
+urgReport/
+*.ucdb
+*.vdb
+
+# Generated dependency/cache directories
+.cache/
