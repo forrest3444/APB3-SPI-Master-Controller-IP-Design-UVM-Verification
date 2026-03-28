@@ -1,0 +1,14 @@
+/csrc/
+/sim/*
+!/sim/AGENTS.md
+/*.daidir/
+/vc_hdrs.h
+/ucli.key
+/DVEfiles/
+/verdiLog/
+/novas*
+/inter.vpd
+/*.vpd
+/*.fsdb
+/*.vdb
+/tr_db.log

@@ -6,7 +6,6 @@ This directory organizes sequences and virtual sequences, defining all stimulus 
 ## What Files in This Directory Should Do
 - Implement base sequences
 - Implement APB / SPI sub-sequences
-- Implement virtual sequencer
 - Implement virtual sequences
 - Define test scenarios: smoke, mode, FIFO, IRQ, etc.
 
