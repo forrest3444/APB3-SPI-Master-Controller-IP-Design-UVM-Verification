@@ -1,5 +1,5 @@
 module spi_ctrl #(
-    parameter int unsigned CLKDIV_W = 16
+    parameter int unsigned CLKDIV_W = 8
 )(
     input  logic                 clk,
     input  logic                 rst_n,

@@ -32,3 +32,4 @@ urgReport/
 
 # Generated dependency/cache directories
 .cache/
+.codex

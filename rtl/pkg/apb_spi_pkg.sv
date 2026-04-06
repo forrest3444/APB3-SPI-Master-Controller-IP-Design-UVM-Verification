@@ -39,7 +39,7 @@ package apb_spi_pkg;
     localparam int unsigned IRQ_RX_OVERFLOW_BIT  = 4;
 
     localparam logic [31:0] CTRL_RESET_VALUE    = 32'h0000_0060;
-    localparam logic [15:0] CLKDIV_RESET_VALUE  = 16'h0001;
+    localparam logic [7:0]  CLKDIV_RESET_VALUE  = 8'h01;
     localparam logic [15:0] VERSION_MAJOR       = 16'h0001;
     localparam logic [15:0] VERSION_MINOR       = 16'h0000;
     localparam logic [31:0] VERSION_RESET_VALUE = {VERSION_MAJOR, VERSION_MINOR};

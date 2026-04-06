@@ -62,8 +62,8 @@ class apb_spi_base_vseq extends uvm_sequence #(uvm_sequence_item);
         apb_write_reg(REG_CTRL_ADDR, ctrl_mirror);
     endtask
 
-    task set_clkdiv(bit [15:0] div);
-        apb_write_reg(REG_CLKDIV_ADDR, {16'h0, div});
+    task set_clkdiv(bit [7:0] div);
+        apb_write_reg(REG_CLKDIV_ADDR, {24'h0, div});
     endtask
 
     task set_irq_enable(bit [4:0] mask);

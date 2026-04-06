@@ -82,7 +82,7 @@ class apb_spi_coverage extends uvm_component;
                 end
 
                 REG_CLKDIV_ADDR: begin
-                    cg_clkdiv = (tr.wdata[15:0] == 0) ? 1 : tr.wdata[15:0];
+                    cg_clkdiv = (tr.wdata[7:0] == 0) ? 1 : tr.wdata[7:0];
                     cfg_cg.sample();
                 end
 

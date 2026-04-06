@@ -1,6 +1,6 @@
 module apb_reg_block #(
     parameter int unsigned APB_ADDR_W = 12,
-    parameter int unsigned CLKDIV_W   = 16,
+    parameter int unsigned CLKDIV_W   = 8,
     parameter int unsigned FIFO_LVL_W = 4
 )(
     input  logic                   clk,

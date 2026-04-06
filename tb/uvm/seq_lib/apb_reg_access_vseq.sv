@@ -45,7 +45,7 @@ class apb_reg_access_vseq extends apb_spi_base_vseq;
         check_read("CTRL clear", REG_CTRL_ADDR, 32'h0000_0000);
 
         apb_write_reg(REG_CLKDIV_ADDR, 32'hffff_fedc);
-        check_read("CLKDIV RW/reserved", REG_CLKDIV_ADDR, 32'h0000_fedc);
+        check_read("CLKDIV RW/reserved", REG_CLKDIV_ADDR, 32'h0000_00dc);
 
         apb_write_reg(REG_IRQ_EN_ADDR, 32'hffff_ffff);
         check_read("IRQ_EN RW/reserved", REG_IRQ_EN_ADDR, 32'h0000_001f);

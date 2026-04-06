@@ -2,7 +2,7 @@ module apb_spi_master_top #(
     parameter int unsigned APB_ADDR_W    = 12,
     parameter int unsigned TX_FIFO_DEPTH = 8,
     parameter int unsigned RX_FIFO_DEPTH = 8,
-    parameter int unsigned CLKDIV_W      = 16
+    parameter int unsigned CLKDIV_W      = 8
 )(
     input  logic                   PCLK,
     input  logic                   PRESETn,
