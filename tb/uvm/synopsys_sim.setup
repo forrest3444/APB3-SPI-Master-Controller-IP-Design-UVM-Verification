@@ -1,2 +1,0 @@
-WORK > DEFAULT
-DEFAULT : ./sim/out/work
