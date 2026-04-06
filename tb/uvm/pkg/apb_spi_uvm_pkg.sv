@@ -31,18 +31,8 @@ package apb_spi_uvm_pkg;
     `include "../cov/apb_spi_coverage.sv"
     `include "../env/apb_spi_env.sv"
 
-    `include "../seq_lib/apb_base_seq.sv"
-    `include "../seq_lib/spi_base_seq.sv"
-    `include "../seq_lib/apb_spi_base_vseq.sv"
-    `include "../seq_lib/smoke_vseq.sv"
-    `include "../seq_lib/mode_sweep_vseq.sv"
-    `include "../seq_lib/fifo_basic_vseq.sv"
-    `include "../seq_lib/irq_basic_vseq.sv"
+    `include "../seq_lib/vseqs.svh"
+    `include "../tests/tests.svh"
 
-    `include "../tests/apb_spi_base_test.sv"
-    `include "../tests/smoke_test.sv"
-    `include "../tests/mode_sweep_test.sv"
-    `include "../tests/fifo_basic_test.sv"
-    `include "../tests/irq_basic_test.sv"
 
 endpackage

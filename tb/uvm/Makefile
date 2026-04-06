@@ -6,13 +6,16 @@ TESTNAME  ?= smoke_test
 SEED      ?= 1
 VERB      ?= UVM_MEDIUM
 RUN_TIME  ?= 1
+BUILD_NAME ?= default
 
 SIM       ?= sim
+BUILD_DIR := $(SIM)/build/$(BUILD_NAME)
 RUN_DIR   := $(SIM)/$(TESTNAME)_seed_$(SEED)
-LOG_DIR   := $(RUN_DIR)/log
-WAVE_DIR  := $(RUN_DIR)/wave
-COV_DIR   := $(RUN_DIR)/cov
-SIMV_DIR  := $(RUN_DIR)/simv
+BUILD_LOG_DIR := $(BUILD_DIR)/log
+RUN_LOG_DIR   := $(RUN_DIR)/log
+WAVE_DIR      := $(RUN_DIR)/wave
+COV_DIR       := $(RUN_DIR)/cov
+SIMV_DIR      := $(BUILD_DIR)/simv
 
 FILELIST  ?= ./filelist.f
 PTHREAD_FIX ?= ./debug/pthread_yield_shim.c
@@ -70,31 +73,34 @@ SIM_OPTS = +ntb_random_seed=$(SEED)     \
 ###############################################################################
 # Targets
 ###############################################################################
-.PHONY: all prepare elab build run sim verdi merge_cov clean clean_all help
+.PHONY: all prepare_build prepare_run elab build run sim verdi merge_cov clean clean_all help
 
 all: sim
 
-prepare:
-	mkdir -p $(LOG_DIR)
-	mkdir -p $(WAVE_DIR)
-	mkdir -p $(COV_DIR)
+prepare_build:
+	mkdir -p $(BUILD_LOG_DIR)
 	mkdir -p $(SIMV_DIR)
 
-elab: prepare
+prepare_run:
+	mkdir -p $(RUN_LOG_DIR)
+	mkdir -p $(WAVE_DIR)
+	mkdir -p $(COV_DIR)
+
+elab: prepare_build
 	$(VCS) $(VCS_OPTS)                  \
 	      $(PTHREAD_FIX)                \
 	      -f $(FILELIST)                \
 	      $(VFILES)                     \
 	      -top $(TB_TOP)                \
 	      -o $(SIMV_DIR)/$(TB_TOP).simv \
-	      -l $(LOG_DIR)/compile.log
+	      -l $(BUILD_LOG_DIR)/compile.log
 
-run: prepare
+run: prepare_run
 	timeout $(RUN_TIME) $(SIMV_DIR)/$(TB_TOP).simv \
 	      $(SIM_OPTS)                   \
 	      $(SIM_COV_OPTS)               \
 	      $(SIM_WAVE_OPTS)              \
-	      -l $(LOG_DIR)/run.log
+	      -l $(RUN_LOG_DIR)/run.log
 
 sim: elab run
 
@@ -120,13 +126,15 @@ clean_all: clean
 help:
 	@echo "Usage examples:"
 	@echo "  make sim TESTNAME=smoke_test SEED=1 VERB=UVM_MEDIUM"
+	@echo "  make elab BUILD_NAME=regression FSDB=1 COV=1 ASSERT=1"
+	@echo "  make run TESTNAME=smoke_test SEED=1 BUILD_NAME=regression FSDB=1 COV=1 ASSERT=1"
 	@echo "  make sim TESTNAME=smoke_test SEED=1 FSDB=1"
 	@echo "  make sim TESTNAME=smoke_test SEED=1 COV=1"
 	@echo "  make sim TESTNAME=smoke_test SEED=1 FSDB=1 COV=1 ASSERT=1 DEBUG=1"
 	@echo ""
 	@echo "Targets:"
-	@echo "  elab         Compile and elaborate"
-	@echo "  run          Run existing simv"
+	@echo "  elab         Compile and elaborate into sim/build/<BUILD_NAME>"
+	@echo "  run          Run existing simv for TESTNAME using sim/build/<BUILD_NAME>"
 	@echo "  sim/all      Build and run"
 	@echo "  verdi        Open waveform in Verdi"
 	@echo "  merge_cov    Merge coverage databases"

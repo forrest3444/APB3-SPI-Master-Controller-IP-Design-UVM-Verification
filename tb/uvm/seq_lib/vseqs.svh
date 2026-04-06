@@ -1,0 +1,8 @@
+`include "apb_base_seq.sv"
+`include "spi_base_seq.sv"
+`include "apb_spi_base_vseq.sv"
+`include "smoke_vseq.sv"
+`include "apb_reg_access_vseq.sv"
+`include "mode_sweep_vseq.sv"
+`include "fifo_basic_vseq.sv"
+`include "irq_basic_vseq.sv"
