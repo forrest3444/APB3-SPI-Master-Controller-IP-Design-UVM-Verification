@@ -1,0 +1,8 @@
+*.fsdb
+*.key
+*.conf
+*.rc
+*.log
+cm.log
+sim/
+verdiLog/
