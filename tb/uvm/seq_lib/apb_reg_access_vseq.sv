@@ -5,66 +5,70 @@ class apb_reg_access_vseq extends apb_spi_base_vseq;
         super.new(name);
     endfunction
 
-    task automatic check_read(string reg_name, bit [11:0] addr, bit [31:0] exp_data);
+    task automatic check_read(string reg_name, uvm_reg rg, bit [31:0] exp_data);
+        check_reg_value(reg_name, rg, exp_data);
+    endtask
+
+    task automatic check_bus_read(string reg_name, uvm_reg rg, bit [31:0] exp_data);
         bit [31:0] act_data;
 
-        apb_read_reg(addr, act_data);
+        bus_read_reg(rg, act_data);
         if (act_data !== exp_data) begin
             `uvm_error(get_type_name(),
-                       $sformatf("%s mismatch at 0x%03h exp=0x%08h act=0x%08h",
-                                 reg_name, addr, exp_data, act_data))
+                       $sformatf("%s mismatch exp=0x%08h act=0x%08h",
+                                 reg_name, exp_data, act_data))
         end
     endtask
 
-    task automatic check_ignored_write(string reg_name, bit [11:0] addr, bit [31:0] wr_data, bit [31:0] exp_data);
-        apb_write_reg(addr, wr_data);
-        check_read(reg_name, addr, exp_data);
+    task automatic check_ignored_write(string reg_name, uvm_reg rg, bit [31:0] wr_data, bit [31:0] exp_data);
+        bus_write_reg(rg, wr_data);
+        check_read(reg_name, rg, exp_data);
     endtask
 
     task body();
         byte unsigned rsp_q[$];
         bit [31:0]   status_before_write;
 
-        check_read("CTRL reset", REG_CTRL_ADDR, CTRL_RESET_VALUE);
-        check_read("STATUS reset", REG_STATUS_ADDR, 32'h0000_000a);
-        check_read("CLKDIV reset", REG_CLKDIV_ADDR, 32'h0000_0001);
-        check_read("TXDATA read-as-zero", REG_TXDATA_ADDR, 32'h0000_0000);
-        check_read("RXDATA empty", REG_RXDATA_ADDR, 32'h0000_0000);
-        check_read("IRQ_EN reset", REG_IRQ_EN_ADDR, 32'h0000_0000);
-        check_read("IRQ_RAW reset", REG_IRQ_RAW_ADDR, 32'h0000_0002);
-        check_read("IRQ_STATUS reset", REG_IRQ_STATUS_ADDR, 32'h0000_0000);
-        check_read("IRQ_CLEAR read-as-zero", REG_IRQ_CLEAR_ADDR, 32'h0000_0000);
-        check_read("TXFIFO_LVL reset", REG_TXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_read("RXFIFO_LVL reset", REG_RXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_read("VERSION reset", REG_VERSION_ADDR, VERSION_RESET_VALUE);
+        check_read("CTRL reset", ral().ctrl, CTRL_RESET_VALUE);
+        check_read("STATUS reset", ral().status, 32'h0000_000a);
+        check_read("CLKDIV reset", ral().clkdiv, 32'h0000_0001);
+        check_bus_read("TXDATA read-as-zero", ral().txdata, 32'h0000_0000);
+        check_read("RXDATA empty", ral().rxdata, 32'h0000_0000);
+        check_read("IRQ_EN reset", ral().irq_en, 32'h0000_0000);
+        check_read("IRQ_RAW reset", ral().irq_raw, 32'h0000_0002);
+        check_read("IRQ_STATUS reset", ral().irq_status, 32'h0000_0000);
+        check_bus_read("IRQ_CLEAR read-as-zero", ral().irq_clear, 32'h0000_0000);
+        check_read("TXFIFO_LVL reset", ral().txfifo_lvl, 32'h0000_0000);
+        check_read("RXFIFO_LVL reset", ral().rxfifo_lvl, 32'h0000_0000);
+        check_read("VERSION reset", ral().version, VERSION_RESET_VALUE);
 
-        apb_write_reg(REG_CTRL_ADDR, 32'hffff_ffff);
-        check_read("CTRL RW/WO/reserved", REG_CTRL_ADDR, 32'h0000_007d);
+        write_reg(ral().ctrl, 32'hffff_ffff);
+        check_read("CTRL RW/WO/reserved", ral().ctrl, 32'h0000_007d);
 
-        apb_write_reg(REG_CTRL_ADDR, 32'h0000_0000);
-        check_read("CTRL clear", REG_CTRL_ADDR, 32'h0000_0000);
+        write_reg(ral().ctrl, 32'h0000_0000);
+        check_read("CTRL clear", ral().ctrl, 32'h0000_0000);
 
-        apb_write_reg(REG_CLKDIV_ADDR, 32'hffff_fedc);
-        check_read("CLKDIV RW/reserved", REG_CLKDIV_ADDR, 32'h0000_00dc);
+        write_reg(ral().clkdiv, 32'hffff_fedc);
+        check_read("CLKDIV RW/reserved", ral().clkdiv, 32'h0000_00dc);
 
-        apb_write_reg(REG_IRQ_EN_ADDR, 32'hffff_ffff);
-        check_read("IRQ_EN RW/reserved", REG_IRQ_EN_ADDR, 32'h0000_001f);
+        write_reg(ral().irq_en, 32'hffff_ffff);
+        check_read("IRQ_EN RW/reserved", ral().irq_en, 32'h0000_001f);
 
-        apb_read_reg(REG_STATUS_ADDR, status_before_write);
-        check_ignored_write("STATUS RO", REG_STATUS_ADDR, 32'hffff_ffff, status_before_write);
-        check_ignored_write("RXDATA RO while empty", REG_RXDATA_ADDR, 32'hffff_ffff, 32'h0000_0000);
-        check_ignored_write("IRQ_RAW RO", REG_IRQ_RAW_ADDR, 32'hffff_ffff, 32'h0000_0002);
-        check_ignored_write("IRQ_STATUS RO", REG_IRQ_STATUS_ADDR, 32'hffff_ffff, 32'h0000_0002);
-        check_ignored_write("TXFIFO_LVL RO", REG_TXFIFO_LVL_ADDR, 32'hffff_ffff, 32'h0000_0000);
-        check_ignored_write("RXFIFO_LVL RO", REG_RXFIFO_LVL_ADDR, 32'hffff_ffff, 32'h0000_0000);
-        check_ignored_write("VERSION RO", REG_VERSION_ADDR, 32'hffff_ffff, VERSION_RESET_VALUE);
+        read_reg(ral().status, status_before_write);
+        check_ignored_write("STATUS RO", ral().status, 32'hffff_ffff, status_before_write);
+        check_ignored_write("RXDATA RO while empty", ral().rxdata, 32'hffff_ffff, 32'h0000_0000);
+        check_ignored_write("IRQ_RAW RO", ral().irq_raw, 32'hffff_ffff, 32'h0000_0002);
+        check_ignored_write("IRQ_STATUS RO", ral().irq_status, 32'hffff_ffff, 32'h0000_0002);
+        check_ignored_write("TXFIFO_LVL RO", ral().txfifo_lvl, 32'hffff_ffff, 32'h0000_0000);
+        check_ignored_write("RXFIFO_LVL RO", ral().rxfifo_lvl, 32'hffff_ffff, 32'h0000_0000);
+        check_ignored_write("VERSION RO", ral().version, 32'hffff_ffff, VERSION_RESET_VALUE);
 
-        apb_write_reg(REG_TXDATA_ADDR, 32'ha5a5_a53c);
-        check_read("TXDATA still read-as-zero", REG_TXDATA_ADDR, 32'h0000_0000);
-        check_read("TXFIFO_LVL after TXDATA write", REG_TXFIFO_LVL_ADDR, 32'h0000_0001);
-        check_read("STATUS after TXDATA write", REG_STATUS_ADDR, 32'h0000_0008);
-        check_read("IRQ_RAW after TXDATA write", REG_IRQ_RAW_ADDR, 32'h0000_0000);
-        check_read("IRQ_STATUS after TXDATA write", REG_IRQ_STATUS_ADDR, 32'h0000_0000);
+        write_reg(ral().txdata, 32'ha5a5_a53c);
+        check_bus_read("TXDATA still read-as-zero", ral().txdata, 32'h0000_0000);
+        check_read("TXFIFO_LVL after TXDATA write", ral().txfifo_lvl, 32'h0000_0001);
+        check_read("STATUS after TXDATA write", ral().status, 32'h0000_0008);
+        check_read("IRQ_RAW after TXDATA write", ral().irq_raw, 32'h0000_0000);
+        check_read("IRQ_STATUS after TXDATA write", ral().irq_status, 32'h0000_0000);
 
         cfg_spi_mode(1'b0, 1'b0, 1'b0, 1'b1, 1'b1, 1'b1);
         set_clkdiv(16'd1);
@@ -73,31 +77,31 @@ class apb_reg_access_vseq extends apb_spi_base_vseq;
         start_transfer();
         wait_for_done();
 
-        check_read("CTRL start self-clear", REG_CTRL_ADDR, 32'h0000_0061);
-        check_read("STATUS after transfer", REG_STATUS_ADDR, 32'h0000_004a);
-        check_read("IRQ_RAW after transfer", REG_IRQ_RAW_ADDR, 32'h0000_0007);
-        check_read("IRQ_STATUS after transfer", REG_IRQ_STATUS_ADDR, 32'h0000_0007);
-        check_read("TXFIFO_LVL after transfer", REG_TXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_read("RXFIFO_LVL after transfer", REG_RXFIFO_LVL_ADDR, 32'h0000_0001);
+        check_read("CTRL start self-clear", ral().ctrl, 32'h0000_0061);
+        check_read("STATUS after transfer", ral().status, 32'h0000_0042);
+        check_read("IRQ_RAW after transfer", ral().irq_raw, 32'h0000_0007);
+        check_read("IRQ_STATUS after transfer", ral().irq_status, 32'h0000_0007);
+        check_read("TXFIFO_LVL after transfer", ral().txfifo_lvl, 32'h0000_0000);
+        check_read("RXFIFO_LVL after transfer", ral().rxfifo_lvl, 32'h0000_0001);
 
-        apb_write_reg(REG_IRQ_CLEAR_ADDR, 32'hffff_ffff);
-        check_read("IRQ_CLEAR still read-as-zero", REG_IRQ_CLEAR_ADDR, 32'h0000_0000);
-        check_read("IRQ_RAW after clear", REG_IRQ_RAW_ADDR, 32'h0000_0006);
-        check_read("IRQ_STATUS after clear", REG_IRQ_STATUS_ADDR, 32'h0000_0006);
+        write_reg(ral().irq_clear, 32'hffff_ffff);
+        check_bus_read("IRQ_CLEAR still read-as-zero", ral().irq_clear, 32'h0000_0000);
+        check_read("IRQ_RAW after clear", ral().irq_raw, 32'h0000_0006);
+        check_read("IRQ_STATUS after clear", ral().irq_status, 32'h0000_0006);
 
-        apb_write_reg(REG_RXDATA_ADDR, 32'hffff_ffff);
-        check_read("RXFIFO_LVL after RXDATA RO write", REG_RXFIFO_LVL_ADDR, 32'h0000_0001);
-        check_read("IRQ_RAW after RXDATA RO write", REG_IRQ_RAW_ADDR, 32'h0000_0006);
-        check_read("RXDATA pop data and reserved zero", REG_RXDATA_ADDR, 32'h0000_00c3);
-        check_read("RXFIFO_LVL after RXDATA read", REG_RXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_read("IRQ_RAW after RXDATA read", REG_IRQ_RAW_ADDR, 32'h0000_0002);
-        check_read("IRQ_STATUS after RXDATA read", REG_IRQ_STATUS_ADDR, 32'h0000_0002);
+        bus_write_reg(ral().rxdata, 32'hffff_ffff);
+        check_read("RXFIFO_LVL after RXDATA RO write", ral().rxfifo_lvl, 32'h0000_0001);
+        check_read("IRQ_RAW after RXDATA RO write", ral().irq_raw, 32'h0000_0006);
+        check_read("RXDATA pop data and reserved zero", ral().rxdata, 32'h0000_00c3);
+        check_read("RXFIFO_LVL after RXDATA read", ral().rxfifo_lvl, 32'h0000_0000);
+        check_read("IRQ_RAW after RXDATA read", ral().irq_raw, 32'h0000_0002);
+        check_read("IRQ_STATUS after RXDATA read", ral().irq_status, 32'h0000_0002);
 
-        apb_write_reg(REG_CTRL_ADDR, 32'h0000_00e1);
-        check_read("CTRL soft_reset self-clear", REG_CTRL_ADDR, 32'h0000_0061);
-        check_read("TXFIFO_LVL after soft_reset", REG_TXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_read("RXFIFO_LVL after soft_reset", REG_RXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_read("IRQ_RAW after soft_reset", REG_IRQ_RAW_ADDR, 32'h0000_0002);
-        check_read("IRQ_STATUS after soft_reset", REG_IRQ_STATUS_ADDR, 32'h0000_0002);
+        write_reg(ral().ctrl, 32'h0000_00e1);
+        check_read("CTRL soft_reset self-clear", ral().ctrl, 32'h0000_0061);
+        check_read("TXFIFO_LVL after soft_reset", ral().txfifo_lvl, 32'h0000_0000);
+        check_read("RXFIFO_LVL after soft_reset", ral().rxfifo_lvl, 32'h0000_0000);
+        check_read("IRQ_RAW after soft_reset", ral().irq_raw, 32'h0000_0002);
+        check_read("IRQ_STATUS after soft_reset", ral().irq_status, 32'h0000_0002);
     endtask
 endclass

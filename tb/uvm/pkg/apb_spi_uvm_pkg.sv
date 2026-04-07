@@ -16,6 +16,9 @@ package apb_spi_uvm_pkg;
     `include "../seq_item/spi_frame.sv"
     `include "../seq_item/apb_spi_vseq_item.sv"
 
+    `include "../ral/apb_reg_adapter.sv"
+    `include "../ral/apb_spi_reg_block.sv"
+
     `include "../agent/apb/apb_sequencer.sv"
     `include "../agent/apb/apb_driver.sv"
     `include "../agent/apb/apb_monitor.sv"

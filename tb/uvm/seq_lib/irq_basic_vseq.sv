@@ -16,8 +16,8 @@ class irq_basic_vseq extends apb_spi_base_vseq;
 
         start_transfer();
         wait_for_done();
-        apb_read_reg(REG_IRQ_RAW_ADDR, rdata);
-        apb_read_reg(REG_IRQ_STATUS_ADDR, rdata);
+        read_reg(ral().irq_raw, rdata);
+        read_reg(ral().irq_status, rdata);
         clear_irq(5'b0_1000);
 
         rsp_q.push_back(8'h5A);
@@ -25,9 +25,9 @@ class irq_basic_vseq extends apb_spi_base_vseq;
         push_tx_byte(8'hC5);
         start_transfer();
         wait_for_done();
-        apb_read_reg(REG_STATUS_ADDR, rdata);
-        apb_read_reg(REG_IRQ_RAW_ADDR, rdata);
-        apb_read_reg(REG_IRQ_STATUS_ADDR, rdata);
+        read_reg(ral().status, rdata);
+        read_reg(ral().irq_raw, rdata);
+        read_reg(ral().irq_status, rdata);
         pop_rx_byte(rx_byte);
         clear_irq(5'b1_1101);
     endtask

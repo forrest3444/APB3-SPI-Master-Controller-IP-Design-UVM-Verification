@@ -187,10 +187,10 @@ module spi_ctrl #(
         end
     end
 
-    assign spi_sclk         = sclk_q;
+    assign spi_sclk         = cs_active_q ? sclk_q : cfg_cpol;
     assign spi_mosi         = mosi_q;
     assign spi_cs_n         = ~cs_active_q;
-    assign status_busy      = (state_q != SPI_ST_IDLE);
+    assign status_busy      = cs_active_q || (state_q == SPI_ST_FRAME_DONE);
     assign status_cs_active = cs_active_q;
 
 endmodule

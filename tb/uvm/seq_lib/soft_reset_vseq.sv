@@ -5,27 +5,6 @@ class soft_reset_vseq extends apb_spi_base_vseq;
         super.new(name);
     endfunction
 
-    task automatic check_reg(string reg_name, bit [11:0] addr, bit [31:0] exp_data);
-        bit [31:0] act_data;
-
-        apb_read_reg(addr, act_data);
-        if (act_data !== exp_data) begin
-            `uvm_error(get_type_name(),
-                       $sformatf("%s mismatch exp=0x%08h act=0x%08h", reg_name, exp_data, act_data))
-        end
-    endtask
-
-    task automatic check_bits(string reg_name, bit [11:0] addr, bit [31:0] mask, bit [31:0] exp_masked);
-        bit [31:0] act_data;
-
-        apb_read_reg(addr, act_data);
-        if ((act_data & mask) !== exp_masked) begin
-            `uvm_error(get_type_name(),
-                       $sformatf("%s masked mismatch mask=0x%08h exp=0x%08h act=0x%08h",
-                                 reg_name, mask, exp_masked, act_data & mask))
-        end
-    endtask
-
     task body();
         byte unsigned rsp_q[$];
         byte unsigned rx_byte;
@@ -36,13 +15,12 @@ class soft_reset_vseq extends apb_spi_base_vseq;
 
         start_transfer();
         wait_for_done();
-        check_bits("Underflow before soft reset", REG_IRQ_RAW_ADDR,
-                   (32'd1 << IRQ_TX_UNDERFLOW_BIT),
-                   (32'd1 << IRQ_TX_UNDERFLOW_BIT));
+        check_reg_bits("Underflow before soft reset", ral().irq_raw,
+                       (32'd1 << IRQ_TX_UNDERFLOW_BIT),
+                       (32'd1 << IRQ_TX_UNDERFLOW_BIT));
 
+        rsp_q.delete();
         rsp_q.push_back(8'h41);
-        rsp_q.push_back(8'h42);
-        rsp_q.push_back(8'h43);
         start_spi_responses_async(rsp_q, 1'b1);
         push_tx_byte(8'hc1);
         push_tx_byte(8'hc2);
@@ -51,29 +29,29 @@ class soft_reset_vseq extends apb_spi_base_vseq;
 
         wait (cfg.spi_cfg.vif.spi_cs_n === 1'b0);
         @(cfg.spi_cfg.vif.spi_sclk);
-        apb_write_reg(REG_CTRL_ADDR, ctrl_mirror | (32'd1 << CTRL_SOFT_RESET_BIT));
+        write_reg(ral().ctrl, ctrl_mirror | (32'd1 << CTRL_SOFT_RESET_BIT));
         @(posedge cfg.apb_cfg.vif.pclk);
 
-        check_reg("CTRL preserves programmed mode after soft reset", REG_CTRL_ADDR, ctrl_mirror);
-        check_reg("TXFIFO cleared by soft reset", REG_TXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_reg("RXFIFO cleared by soft reset", REG_RXFIFO_LVL_ADDR, 32'h0000_0000);
-        check_bits("STATUS cleared by soft reset", REG_STATUS_ADDR,
-                   (32'd1 << STATUS_BUSY_BIT) |
-                   (32'd1 << STATUS_TX_EMPTY_BIT) |
-                   (32'd1 << STATUS_RX_EMPTY_BIT) |
-                   (32'd1 << STATUS_CS_ACTIVE_BIT) |
-                   (32'd1 << STATUS_DONE_PENDING_BIT) |
-                   (32'd1 << STATUS_TX_UNDERFLOW_PENDING_BIT) |
-                   (32'd1 << STATUS_RX_OVERFLOW_PENDING_BIT),
-                   (32'd1 << STATUS_TX_EMPTY_BIT) |
-                   (32'd1 << STATUS_RX_EMPTY_BIT));
-        check_bits("IRQ raw cleared by soft reset", REG_IRQ_RAW_ADDR,
-                   (32'd1 << IRQ_DONE_BIT) |
-                   (32'd1 << IRQ_TX_EMPTY_BIT) |
-                   (32'd1 << IRQ_RX_NOT_EMPTY_BIT) |
-                   (32'd1 << IRQ_TX_UNDERFLOW_BIT) |
-                   (32'd1 << IRQ_RX_OVERFLOW_BIT),
-                   (32'd1 << IRQ_TX_EMPTY_BIT));
+        check_reg_value("CTRL preserves programmed mode after soft reset", ral().ctrl, ctrl_mirror);
+        check_reg_value("TXFIFO cleared by soft reset", ral().txfifo_lvl, 32'h0000_0000);
+        check_reg_value("RXFIFO cleared by soft reset", ral().rxfifo_lvl, 32'h0000_0000);
+        check_reg_bits("STATUS cleared by soft reset", ral().status,
+                       (32'd1 << STATUS_BUSY_BIT) |
+                       (32'd1 << STATUS_TX_EMPTY_BIT) |
+                       (32'd1 << STATUS_RX_EMPTY_BIT) |
+                       (32'd1 << STATUS_CS_ACTIVE_BIT) |
+                       (32'd1 << STATUS_DONE_PENDING_BIT) |
+                       (32'd1 << STATUS_TX_UNDERFLOW_PENDING_BIT) |
+                       (32'd1 << STATUS_RX_OVERFLOW_PENDING_BIT),
+                       (32'd1 << STATUS_TX_EMPTY_BIT) |
+                       (32'd1 << STATUS_RX_EMPTY_BIT));
+        check_reg_bits("IRQ raw cleared by soft reset", ral().irq_raw,
+                       (32'd1 << IRQ_DONE_BIT) |
+                       (32'd1 << IRQ_TX_EMPTY_BIT) |
+                       (32'd1 << IRQ_RX_NOT_EMPTY_BIT) |
+                       (32'd1 << IRQ_TX_UNDERFLOW_BIT) |
+                       (32'd1 << IRQ_RX_OVERFLOW_BIT),
+                       (32'd1 << IRQ_TX_EMPTY_BIT));
 
         if (cfg.spi_cfg.vif.spi_cs_n !== 1'b1) begin
             `uvm_error(get_type_name(), "CS remained asserted after soft reset")

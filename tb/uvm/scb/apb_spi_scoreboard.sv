@@ -88,9 +88,7 @@ class apb_spi_scoreboard extends uvm_component;
                         rx_fifo_level = 0;
                         pending_done        = 1'b0;
                         pending_rx_overflow = 1'b0;
-                    end
-
-                    if (tr.wdata[CTRL_START_BIT] && cfg_enable) begin
+                    end else if (tr.wdata[CTRL_START_BIT] && cfg_enable) begin
                         if (cfg_tx_en && (tx_fifo_level == 0)) begin
                             sticky_irq[IRQ_TX_UNDERFLOW_BIT] = 1'b1;
                         end else if (cfg_tx_en && (tx_fifo_level > 0)) begin
@@ -199,6 +197,10 @@ class apb_spi_scoreboard extends uvm_component;
                 if (tr.tx_byte !== exp_tx) begin
                     `uvm_error(get_type_name(),
                                $sformatf("SPI TX mismatch exp=0x%02h act=0x%02h", exp_tx, tr.tx_byte))
+                end
+
+                if (cfg_cont && (tx_fifo_level > 0)) begin
+                    tx_fifo_level--;
                 end
             end
         end

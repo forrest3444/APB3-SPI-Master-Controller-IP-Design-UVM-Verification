@@ -34,6 +34,22 @@ fi
 PASS_TESTS=()
 FAIL_TESTS=()
 
+run_log_has_failures() {
+    local logfile=$1
+
+    [[ -f "$logfile" ]] || return 0
+
+    if grep -Eq 'UVM_(ERROR|FATAL) :[[:space:]]*[1-9][0-9]*' "$logfile"; then
+        return 0
+    fi
+
+    if grep -q 'failed at ' "$logfile"; then
+        return 0
+    fi
+
+    return 1
+}
+
 echo "Regression configuration:"
 echo "  tests    : ${TESTS[*]}"
 echo "  seed     : $SEED"
@@ -63,6 +79,8 @@ fi
 echo
 
 for testname in "${TESTS[@]}"; do
+    run_log="$SCRIPT_DIR/sim/run/${testname}_seed_${SEED}/log/run.log"
+
     echo "============================================================"
     echo "Running $testname"
     echo "============================================================"
@@ -77,7 +95,7 @@ for testname in "${TESTS[@]}"; do
         BUILD_NAME="$BUILD_NAME" \
         FSDB=1 \
         COV=1 \
-        ASSERT=1; then
+        ASSERT=1 && ! run_log_has_failures "$run_log"; then
         PASS_TESTS+=("$testname")
         echo "[PASS] $testname"
     else

@@ -37,6 +37,15 @@ class spi_driver extends uvm_driver #(spi_frame);
         shift_reg = req.rx_byte;
         wait (cfg.vif.spi_cs_n === 1'b0);
 
+        while ((cfg.vif.spi_cs_n === 1'b0) && (cfg.vif.spi_sclk !== req.cpol)) begin
+            @(cfg.vif.spi_sclk or cfg.vif.spi_cs_n);
+        end
+
+        if (cfg.vif.spi_cs_n !== 1'b0) begin
+            cfg.vif.spi_miso = 1'b0;
+            return;
+        end
+
         if (!req.cpha) begin
             cfg.vif.spi_miso = shift_reg[7];
             shift_reg        = {shift_reg[6:0], 1'b0};
@@ -84,7 +93,9 @@ class spi_driver extends uvm_driver #(spi_frame);
             prev_sclk = curr_sclk;
         end
 
-        wait (cfg.vif.spi_cs_n === 1'b1);
-        cfg.vif.spi_miso = 1'b0;
+        if (!req.cont) begin
+            wait (cfg.vif.spi_cs_n === 1'b1);
+            cfg.vif.spi_miso = 1'b0;
+        end
     endtask
 endclass
