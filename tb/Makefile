@@ -28,7 +28,6 @@ SIMV_IMAGE := $(SIMV_DIR)/$(TB_TOP).simv
 SIMV_VDB   := $(SIMV_DIR)/$(TB_TOP).simv.vdb
 
 FILELIST  ?= ./filelist.f
-PTHREAD_FIX ?= ./debug/pthread_yield_shim.c
 
 ###############################################################################
 # Tools
@@ -89,7 +88,7 @@ SIM_OPTS = +ntb_random_seed=$(SEED)  \
 # Targets
 ###############################################################################
 .PHONY: all prepare_build prepare_run check_elab elab run sim regression verdi merge_cov \
-        clean clean_all clean_build clean_run clean_cov clean_reports clean_misc help
+        clean clean_build clean_run clean_all help
 
 all: sim
 
@@ -108,7 +107,6 @@ check_elab:
 
 elab: prepare_build
 	$(VCS) $(VCS_OPTS)                  \
-	      $(PTHREAD_FIX)                \
 	      -f $(FILELIST)                \
 	      $(VFILES)                     \
 	      -top $(TB_TOP)                \
@@ -160,24 +158,42 @@ merge_cov:
 	echo "Merging coverage into $(MERGED_COV_DIR)"; \
 	$(URG) $$urg_args -dbname $(MERGED_COV_DIR) -report $(MERGED_COV_REPORT_DIR)
 
-clean: clean_run clean_cov clean_reports
+# -----------------------------------------------------------------------------
+# Clean targets
+# -----------------------------------------------------------------------------
+# clean_build  — remove compile / elaboration artifacts
+# clean_run    — remove per-test simulation run artifacts (logs, waves, cov,
+#                plus VCS/Verdi litter: novas*, DVEfiles, verdiLog, ucli.key, etc.)
+# clean        — clean_build + clean_run (default)
+# clean_all    — wipe everything under sim/ AND all stray tool litter everywhere
+# -----------------------------------------------------------------------------
+
+# VCS compile intermediates that can appear at tb/ or in subdir sandboxes
+STRAY_COMPILE = csrc *.daidir vc_hdrs.h
+
+# VCS / Verdi / DVE runtime litter (logs, configs, waveform/cov dbs, GUI state)
+STRAY_RUNTIME = ucli.key DVEfiles verdiLog novas.conf novas.rc novas_dump.log \
+                novas.*.log inter.vpd *.vpd *.fsdb *.vdb cm.log tr_db.log
 
 clean_build:
-	rm -rf $(SIM)/build csrc *.daidir vc_hdrs.h
+	rm -rf $(SIM)/build $(STRAY_COMPILE)
+	rm -rf ral/$(SIM)/build ral/csrc ral/*.daidir ral/vc_hdrs.h
 
 clean_run:
-	rm -rf $(SIM)/run
+	rm -rf $(SIM)/run $(MERGED_COV_DIR) $(MERGED_COV_REPORT_DIR)
+	rm -rf $(SIM)/DVEfiles $(SIM)/verdiLog $(SIM)/novas.*
+	rm -rf $(STRAY_RUNTIME)
+	rm -rf ral/$(SIM)/run ral/DVEfiles ral/verdiLog ral/novas.* ral/ucli.key \
+	       ral/inter.vpd ral/*.vpd ral/*.fsdb ral/*.vdb ral/cm.log ral/tr_db.log
 
-clean_cov:
-	rm -rf $(MERGED_COV_DIR) $(MERGED_COV_REPORT_DIR)
+clean: clean_build clean_run
 
-clean_reports:
-	rm -rf urgReport
-
-clean_misc:
-	rm -rf csrc *.daidir vc_hdrs.h ucli.key DVEfiles verdiLog novas* inter.vpd *.vpd *.fsdb *.vdb tr_db.log
-
-clean_all: clean clean_build clean_misc
+clean_all:
+	rm -rf $(SIM)
+	rm -rf $(STRAY_COMPILE) $(STRAY_RUNTIME)
+	rm -rf ral/$(SIM) ral/csrc ral/*.daidir ral/vc_hdrs.h ral/DVEfiles \
+	       ral/verdiLog ral/novas* ral/ucli.key ral/inter.vpd ral/*.vpd \
+	       ral/*.fsdb ral/*.vdb ral/cm.log ral/tr_db.log
 
 help:
 	@echo "Usage examples:"
@@ -194,13 +210,11 @@ help:
 	@echo "  sim/all      Build and run"
 	@echo "  regression   Run the full regression suite via run_regression.sh"
 	@echo "  verdi        Open waveform in Verdi"
-	@echo "  merge_cov    Merge sim/run/*/cov.vdb using $(SIMV_VDB) into MERGED_COV_DIR and write HTML to MERGED_COV_REPORT_DIR"
-	@echo "  clean        Remove run outputs, merged coverage, and reports"
-	@echo "  clean_build  Remove shared build outputs"
-	@echo "  clean_run    Remove per-test run directories"
-	@echo "  clean_cov    Remove merged coverage output"
-	@echo "  clean_reports Remove generated coverage reports"
-	@echo "  clean_all    Remove all generated artifacts"
+	@echo "  merge_cov    Merge sim/run/*/cov.vdb into merged_cov.vdb and write HTML report"
+	@echo "  clean        Clean build + run artifacts (default)"
+	@echo "  clean_build  Clean compile / elaboration artifacts only"
+	@echo "  clean_run    Clean simulation run artifacts + VCS/Verdi litter"
+	@echo "  clean_all    Wipe sim/ and all stray tool litter under tb/"
 	@echo ""
 	@echo "Defaults:"
 	@echo "  COV=1 FSDB=1 ASSERT=1 DEBUG=0"

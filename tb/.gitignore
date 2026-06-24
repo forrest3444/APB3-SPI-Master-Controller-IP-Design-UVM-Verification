@@ -1,0 +1,36 @@
+# VCS compile intermediates
+/csrc/
+/*.daidir/
+/vc_hdrs.h
+
+# VCS / Verdi / DVE runtime litter
+/ucli.key
+/DVEfiles/
+/verdiLog/
+/novas*
+/inter.vpd
+/*.vpd
+/*.fsdb
+/*.vdb
+/cm.log
+/tr_db.log
+/novas_dump.log
+
+# Simulation output (build + run artifacts)
+/sim/*
+
+# RAL sandbox — standalone sim litter (patterns relative to tb/)
+ral/csrc/
+ral/*.daidir/
+ral/vc_hdrs.h
+ral/ucli.key
+ral/DVEfiles/
+ral/verdiLog/
+ral/novas*
+ral/inter.vpd
+ral/*.vpd
+ral/*.fsdb
+ral/*.vdb
+ral/cm.log
+ral/tr_db.log
+ral/sim/

@@ -1,36 +1,30 @@
 # =========================================================
 # Design RTL
 # =========================================================
-+incdir+../../rtl/include
-+incdir+../../rtl/pkg
++incdir+../../rtl
 
-../../rtl/pkg/apb_spi_pkg.sv
-../../rtl/fifo/sync_fifo.sv
-../../rtl/irq/irq_ctrl.sv
-../../rtl/reg_if/apb_reg_block.sv
-../../rtl/ctrl/spi_ctrl.sv
-../../rtl/top/apb_spi_master_top.sv
+../../rtl/apb_spi_pkg.sv
+../../rtl/sync_fifo.sv
+../../rtl/irq_ctrl.sv
+../../rtl/apb_reg_block.sv
+../../rtl/spi_ctrl.sv
+../../rtl/apb_spi_master_top.sv
 
 # =========================================================
 # Verification Interfaces
 # =========================================================
-+incdir+./if
-./if/apb_if.sv
-./if/spi_if.sv
-      
++incdir+./tb_top
+./tb_top/apb_if.sv
+./tb_top/spi_if.sv
+
 
 # =========================================================
 # Verification Package Dependencies
 # =========================================================
-+incdir+./cfg
-+incdir+./seq_item
-+incdir+./agent/apb
-+incdir+./agent/spi
-+incdir+./seq_lib
++incdir+./agent/apb_agent
++incdir+./agent/spi_agent
 +incdir+./env
-+incdir+./scb
-+incdir+./cov
-+incdir+./sva
++incdir+./seq_lib
 +incdir+./tests
 +incdir+./pkg
 
