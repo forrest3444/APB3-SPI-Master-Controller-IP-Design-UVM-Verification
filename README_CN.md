@@ -45,6 +45,7 @@ make -C tb clean_all
 
 - [设计规格 — English](rtl/doc/apb_spi_master_controller_v1_spec_en.md)
 - [设计规格 — 中文](rtl/doc/apb_spi_master_controller_v1_spec_cn.md)
+- [验证计划 — English](tb/doc/VERIFICATION_PLAN_V1_EN.md)
 - [验证计划 — 中文](tb/doc/VERIFICATION_PLAN_V1_CN.md)
 
 ## 许可证

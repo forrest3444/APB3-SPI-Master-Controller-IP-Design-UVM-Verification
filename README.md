@@ -45,6 +45,7 @@ Useful options include `COV=0`, `FSDB=0`, `ASSERT=0`, `DEBUG=1`, and `VERB=UVM_H
 
 - [Design specification — English](rtl/doc/apb_spi_master_controller_v1_spec_en.md)
 - [Design specification — 中文](rtl/doc/apb_spi_master_controller_v1_spec_cn.md)
+- [Verification plan — English](tb/doc/VERIFICATION_PLAN_V1_EN.md)
 - [Verification plan — 中文](tb/doc/VERIFICATION_PLAN_V1_CN.md)
 
 ## License
