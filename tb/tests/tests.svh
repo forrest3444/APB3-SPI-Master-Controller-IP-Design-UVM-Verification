@@ -1,6 +1,7 @@
 `include "apb_spi_base_test.sv"
 `include "smoke_test.sv"
 `include "apb_reg_access_test.sv"
+`include "apb_reg_semantics_test.sv"
 `include "clkdiv_test.sv"
 `include "mode_sweep_test.sv"
 `include "fifo_basic_test.sv"

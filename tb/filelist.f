@@ -1,14 +1,14 @@
 # =========================================================
 # Design RTL
 # =========================================================
-+incdir+../../rtl
++incdir+../rtl
 
-../../rtl/apb_spi_pkg.sv
-../../rtl/sync_fifo.sv
-../../rtl/irq_ctrl.sv
-../../rtl/apb_reg_block.sv
-../../rtl/spi_ctrl.sv
-../../rtl/apb_spi_master_top.sv
+../rtl/apb_spi_pkg.sv
+../rtl/sync_fifo.sv
+../rtl/irq_ctrl.sv
+../rtl/apb_reg_block.sv
+../rtl/spi_ctrl.sv
+../rtl/apb_spi_master_top.sv
 
 # =========================================================
 # Verification Interfaces

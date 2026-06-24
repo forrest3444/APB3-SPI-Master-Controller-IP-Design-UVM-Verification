@@ -1,3 +1,5 @@
+**English** | [中文](apb_spi_master_controller_v1_spec_cn.md)
+
 # APB-SPI Master Controller v1  
 **Developer-Oriented Top-Level Design Spec**  
 **Document Status:** Frozen for v1 Architecture  
@@ -239,7 +241,9 @@ v1 uses an APB3-style interface.
 
 - v1 does not implement wait-state insertion
 - v1 does not report errors through the APB error channel
-- Illegal address reads return a default value; illegal writes are ignored
+- Register offsets are word-aligned. Any address that does not exactly match a
+  defined offset, including an unaligned address, is illegal.
+- Illegal address reads return `32'h0000_0000`; illegal writes are ignored
 
 ### 4.2 SPI Interface
 **Outputs**
@@ -335,6 +339,10 @@ The following design rules are adopted:
 - Data registers are independent:
   - `TXDATA`
   - `RXDATA`
+- Writes to RO registers and reserved bits are ignored
+- Reserved bits read as zero
+- Reads from WO registers (`TXDATA` and `IRQ_CLEAR`) return
+  `32'h0000_0000` and have no side effect
 
 ### 6.2 Register Map Summary
 
@@ -346,7 +354,7 @@ The following design rules are adopted:
 | 0x0C | TXDATA | WO | - | Transmit data entry |
 | 0x10 | RXDATA | RO | 0x0000_0000 | Receive data exit |
 | 0x14 | IRQ_EN | RW | 0x0000_0000 | Interrupt enable |
-| 0x18 | IRQ_RAW | RO | 0x0000_0000 | Raw interrupt status |
+| 0x18 | IRQ_RAW | RO | 0x0000_0002 | Raw interrupt status; includes live level sources |
 | 0x1C | IRQ_STATUS | RO | 0x0000_0000 | Masked interrupt status |
 | 0x20 | IRQ_CLEAR | WO | - | Write 1 to clear interrupt |
 | 0x24 | TXFIFO_LVL | RO | 0x0000_0000 | TX FIFO level |
@@ -365,6 +373,15 @@ The following design rules are adopted:
 
 - `tx_empty = 1`
 - `rx_empty = 1`
+
+`IRQ_RAW` reads as `0x0000_0002` after reset release because
+`tx_empty_raw` is a live level-type source and the reset TX FIFO is empty.
+The three stored sticky sources (`done_raw`, `tx_underflow_raw`, and
+`rx_overflow_raw`) reset to zero. `IRQ_STATUS` and `irq` remain zero because
+`IRQ_EN` resets to zero.
+
+`TXDATA` and `IRQ_CLEAR` contain no readable storage. Their reset entry is
+therefore shown as `-`, while their APB read value is defined as zero.
 
 ---
 
@@ -388,9 +405,18 @@ The following design rules are adopted:
 **Semantic notes**
 
 - When `enable = 0`, no new transaction may be started
-- `start` is a command pulse bit; writing 1 takes effect and then self-clears
-- `soft_reset` is a command pulse bit; writing 1 takes effect and then self-clears
+- `start` and `soft_reset` are write-only command bits. Writing 1 generates a
+  one-PCLK-cycle pulse; reading CTRL always returns zero for these bits
+- Every CTRL write also updates all six RW fields from the same write data.
+  Software shall preserve their intended values when issuing a command
+- `start` is accepted only while the SPI controller is in `IDLE`. A start
+  written during `LOAD`, `SHIFT`, or `FRAME_DONE` is ignored
+- If `start` and `soft_reset` are written as 1 in the same APB transfer,
+  software reset takes precedence and no frame is started
 - `cont = 1` means that after one start, if the TX FIFO still contains data, CS remains asserted and subsequent frames continue automatically
+- Except for `soft_reset`, software shall update CTRL configuration fields and
+  CLKDIV only while the controller is idle. Mid-frame configuration changes
+  are unsupported and their SPI waveform is not architecturally guaranteed
 
 ### 7.2 STATUS Register
 **Address:** `0x04`
@@ -416,14 +442,17 @@ The last three fields are essentially mapped from sticky raw bits inside `irq_ct
 
 | Bit | Field | Access | Reset | Description |
 |---|---|---|---|---|
-| 15:0 | div_value | RW | 1 | SPI SCLK divider value |
-| 31:16 | reserved | - | 0 | Reserved |
+| 7:0 | div_value | RW | 1 | SPI SCLK divider value |
+| 31:8 | reserved | - | 0 | Reserved |
 
 **Semantics**
 
-- `spi_sclk` toggles once every `div_value + 1` PCLK cycles
+- Define `effective_div = (div_value == 0) ? 1 : div_value`
+- While a frame is shifting, `spi_sclk` toggles once every `effective_div`
+  PCLK cycles
 - One full SCLK period requires two toggles
-- If `div_value == 0`, the internal logic shall treat it as 1
+- Therefore `T_SCLK = 2 * effective_div * T_PCLK`
+- Consequently, `div_value = 0` and `div_value = 1` produce the same SCLK rate
 
 ### 7.4 TXDATA Register
 **Address:** `0x0C`
@@ -470,7 +499,7 @@ The last three fields are essentially mapped from sticky raw bits inside `irq_ct
 | Bit | Field | Access | Reset |
 |---|---|---|---|
 | 0 | done_raw | RO | 0 |
-| 1 | tx_empty_raw | RO | 0 |
+| 1 | tx_empty_raw | RO | 1 |
 | 2 | rx_not_empty_raw | RO | 0 |
 | 3 | tx_underflow_raw | RO | 0 |
 | 4 | rx_overflow_raw | RO | 0 |
@@ -483,6 +512,8 @@ The last three fields are essentially mapped from sticky raw bits inside `irq_ct
 - `rx_overflow_raw`: sticky event-type
 - `tx_empty_raw`: level-type
 - `rx_not_empty_raw`: level-type
+- The reset column gives the value observed after reset release. Level-type
+  fields contain no resettable storage and always reflect current FIFO state
 
 ### 7.8 IRQ_STATUS Register
 **Address:** `0x1C`
@@ -512,6 +543,8 @@ The last three fields are essentially mapped from sticky raw bits inside `irq_ct
 
 - For sticky items, write 1 to clear
 - For level-type items, clear has no effect
+- If a sticky event and its clear bit occur in the same PCLK cycle, clear takes
+  precedence
 
 ### 7.10 TXFIFO_LVL / RXFIFO_LVL
 **Addresses:** `0x24`, `0x28`
@@ -553,10 +586,20 @@ v1 adopts a full-duplex SPI model:
 `spi_ctrl` may start a frame only when all relevant conditions are satisfied:
 
 - `cfg_enable = 1`
-- A `start_pulse` is received, or continuous mode allows continuation
-- Current `busy = 0`
+- The controller is in `IDLE` and a `start_pulse` is received, or a completed
+  frame is eligible for continuous-mode continuation
 - If `cfg_tx_en = 1`, the TX FIFO shall contain at least 1 byte
 - If `cfg_tx_en = 0` and `cfg_rx_en = 1`, dummy transmission is allowed
+
+Start rejection behavior is fixed as follows:
+
+- If `cfg_enable = 0`, start is ignored without an interrupt event
+- If `cfg_tx_en = 1` and the TX FIFO is empty, start does not begin a frame and
+  generates `evt_tx_underflow`
+- If `cfg_tx_en = 0` and `cfg_rx_en = 1`, start begins one dummy-transmit frame
+- If both `cfg_tx_en` and `cfg_rx_en` are 0, start is ignored without an
+  underflow event
+- A start received outside `IDLE` is ignored
 
 ### 8.4 Continuous Mode
 When `cont = 0`:
@@ -567,10 +610,35 @@ When `cont = 0`:
 When `cont = 1`:
 
 - One `start_pulse` may trigger continuous transmission
-- As long as TX FIFO still contains data, CS remains active between frames
+- Automatic continuation applies only when `cfg_tx_en = 1`. As long as the TX
+  FIFO still contains data, CS remains active between frames
 - When all data has been sent, CS is released
+- Each completed frame still generates one `evt_done` pulse and, when RX is
+  enabled, attempts one RX FIFO write
+- Normal termination caused by the TX FIFO becoming empty does not generate
+  `evt_tx_underflow`
+- Dummy receive-only operation (`tx_en = 0, rx_en = 1`) executes one frame per
+  accepted start even when `cont = 1`
 
-### 8.5 CPOL / CPHA
+### 8.5 Software Reset Behavior
+Writing `CTRL.soft_reset = 1` has execution-state reset semantics, not a full
+register reset. It has the following effects:
+
+- Abort the active frame and return the SPI controller to `IDLE`
+- Deassert CS, drive MOSI low, and return SCLK to the configured CPOL idle level
+- Empty both TX and RX FIFOs
+- Clear the sticky done, TX-underflow, and RX-overflow interrupt sources
+- Recompute level-type interrupt sources from the now-empty FIFOs
+
+Software reset does not independently restore CTRL RW fields to their cold-reset
+defaults. As with every CTRL write, those fields take the values supplied in
+the same APB write that requests soft reset; software must preserve the desired
+configuration bits. CLKDIV, IRQ_EN, and VERSION are unchanged. After software
+reset `tx_empty_raw` is 1, and its contribution to IRQ_STATUS and `irq` depends
+on the preserved `IRQ_EN.tx_empty_en` bit. Once the reset command has completed,
+STATUS reads `0x0000_000A` until new activity changes FIFO or controller state.
+
+### 8.6 CPOL / CPHA
 v1 supports the four standard modes:
 
 - Mode 0: `CPOL=0`, `CPHA=0`
@@ -598,7 +666,9 @@ rather than scattering CPOL/CPHA special-case logic throughout FSM branches.
 ## 9. Error and Exception Semantics
 
 ### 9.1 tx_underflow
-v1 reserves this event to indicate that the execution engine expected valid TX data for the next frame but did not receive it.
+`tx_underflow` is generated when an APB start command is received while the
+controller is in `IDLE`, `cfg_enable = 1`, `cfg_tx_en = 1`, and the TX FIFO is
+empty. No SPI frame starts in this case.
 
 **Notes**
 
@@ -620,7 +690,8 @@ then:
 ### 9.3 APB Illegal Access
 In v1:
 
-- Illegal address read: return 0
+- Illegal address read, including an unaligned address: return
+  `32'h0000_0000`
 - Illegal address write: ignore
 - Do not assert `PSLVERR`
 
@@ -701,7 +772,7 @@ module apb_spi_master_top #(
     parameter int unsigned APB_ADDR_W    = 12,
     parameter int unsigned TX_FIFO_DEPTH = 8,
     parameter int unsigned RX_FIFO_DEPTH = 8,
-    parameter int unsigned CLKDIV_W      = 16
+    parameter int unsigned CLKDIV_W      = 8
 )(
     input  logic                   PCLK,
     input  logic                   PRESETn,
@@ -728,7 +799,7 @@ module apb_spi_master_top #(
 ```systemverilog
 module apb_reg_block #(
     parameter int unsigned APB_ADDR_W = 12,
-    parameter int unsigned CLKDIV_W   = 16,
+    parameter int unsigned CLKDIV_W   = 8,
     parameter int unsigned FIFO_LVL_W = 4
 )(
     input  logic                   clk,
@@ -784,7 +855,7 @@ module apb_reg_block #(
 ### 11.3 `spi_ctrl`
 ```systemverilog
 module spi_ctrl #(
-    parameter int unsigned CLKDIV_W = 16
+    parameter int unsigned CLKDIV_W = 8
 )(
     input  logic                 clk,
     input  logic                 rst_n,
