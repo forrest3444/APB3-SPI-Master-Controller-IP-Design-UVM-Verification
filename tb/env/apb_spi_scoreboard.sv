@@ -22,6 +22,7 @@ class apb_spi_scoreboard extends uvm_component;
     int       last_frame_idx = -1;
     bit       pending_done;
     bit       pending_rx_overflow;
+    bit       transfer_active;
 
     function new(string name = "apb_spi_scoreboard", uvm_component parent = null);
         super.new(name, parent);
@@ -88,11 +89,15 @@ class apb_spi_scoreboard extends uvm_component;
                         rx_fifo_level = 0;
                         pending_done        = 1'b0;
                         pending_rx_overflow = 1'b0;
-                    end else if (tr.wdata[CTRL_START_BIT] && cfg_enable) begin
+                        transfer_active     = 1'b0;
+                    end else if (tr.wdata[CTRL_START_BIT] && cfg_enable && !transfer_active) begin
                         if (cfg_tx_en && (tx_fifo_level == 0)) begin
                             sticky_irq[IRQ_TX_UNDERFLOW_BIT] = 1'b1;
                         end else if (cfg_tx_en && (tx_fifo_level > 0)) begin
                             tx_fifo_level--;
+                            transfer_active = 1'b1;
+                        end else if (!cfg_tx_en && cfg_rx_en) begin
+                            transfer_active = 1'b1;
                         end
                     end
                 end
@@ -199,10 +204,14 @@ class apb_spi_scoreboard extends uvm_component;
                                $sformatf("SPI TX mismatch exp=0x%02h act=0x%02h", exp_tx, tr.tx_byte))
                 end
 
-                if (cfg_cont && (tx_fifo_level > 0)) begin
-                    tx_fifo_level--;
-                end
             end
+        end
+
+        if (cfg_cont && cfg_enable && cfg_tx_en && (tx_fifo_level > 0)) begin
+            tx_fifo_level--;
+            transfer_active = 1'b1;
+        end else begin
+            transfer_active = 1'b0;
         end
 
         if (cfg_rx_en) begin

@@ -43,7 +43,7 @@ When a lower-priority source conflicts with a higher-priority baseline, record t
 **In scope:**
 
 - All 12 software-visible registers and their RW/RO/WO/reserved semantics
-- APB3-style always-ready transfers and illegal-address behavior
+- APB3-style zero-wait transfers and illegal-address error responses
 - Four SPI CPOL/CPHA modes, 8-bit MSB-first transfers
 - CLKDIV, TX/RX FIFOs, single-frame and continuous transfers
 - Raw, mask, clear, and output behavior of all five interrupt sources
@@ -64,7 +64,7 @@ When a lower-priority source conflicts with a higher-priority baseline, record t
 
 | Interface | Key semantics |
 | --- | --- |
-| APB | 12-bit address, 32-bit data, `PREADY=1`, `PSLVERR=0` |
+| APB | 12-bit address, 32-bit data, `PREADY=1`; `PSLVERR=1` in an illegal-access completion cycle |
 | SPI | One CS, modes 0–3, 8-bit, MSB-first |
 | IRQ | `irq = \|(IRQ_RAW & IRQ_EN)` |
 
@@ -75,7 +75,8 @@ The DUT consists of `apb_reg_block`, `spi_ctrl`, two `sync_fifo` instances, and 
 - After reset, `CTRL=0x0000_0060`, `STATUS=0x0000_000A`, and `CLKDIV=1`.
 - After reset, `IRQ_RAW=0x0000_0002` because `tx_empty_raw` is a live level source; `IRQ_STATUS=0`.
 - Reads of `TXDATA` and `IRQ_CLEAR` return zero. Writes to RO or reserved fields are ignored.
-- Reads from unmapped or unaligned addresses return zero; writes have no side effect; `PSLVERR` remains zero.
+- Reads from unmapped or unaligned addresses return zero, writes have no side effect, and the completion cycle returns `PSLVERR=1`; legal-address accesses return `PSLVERR=0`.
+- RO writes, WO reads, empty RXDATA reads, and full TXDATA writes are defined register semantics and do not assert `PSLVERR`.
 - `effective_div = (CLKDIV == 0) ? 1 : CLKDIV`, and `T_SCLK = 2 × effective_div × T_PCLK`.
 - Start is accepted only in `IDLE`; start while busy is ignored.
 - With enable=1, tx_en=1, and an empty TX FIFO, start reports underflow and does not start a frame.
@@ -92,7 +93,7 @@ The DUT consists of `apb_reg_block`, `spi_ctrl`, two `sync_fifo` instances, and 
 | ID | Objective | Acceptance focus |
 | --- | --- | --- |
 | OBJ-REG | Register semantics | Reset, RW/RO/WO, reserved, VERSION, illegal addresses |
-| OBJ-APB | APB protocol | Setup/access, always-ready, no error, back-to-back transfers |
+| OBJ-APB | APB protocol | Setup/access, zero-wait completion, legal/illegal responses, back-to-back transfers |
 | OBJ-SPI | SPI data and timing | Four modes, 8-bit, MSB-first, CS/SCLK/MOSI/MISO |
 | OBJ-CLK | Divider | Equivalent 0/1, typical, random, and maximum values |
 | OBJ-FIFO | FIFOs | Ordering, level, empty/full, ignored full write, empty read, RX overflow |
@@ -194,9 +195,9 @@ This table contains only normative verification requirements derived from the sp
 | F-REG-02 | CTRL/CLKDIV/IRQ_EN RW and reserved fields | P0 | TC-REG-02/03 |
 | F-REG-03 | start/soft_reset/TXDATA/IRQ_CLEAR WO effects and read-as-zero | P0 | TC-REG-04 |
 | F-REG-04 | Ignored writes to STATUS/RXDATA/IRQ/FIFO_LVL/VERSION | P0 | TC-REG-05 |
-| F-REG-05 | Zero reads and side-effect-free writes for illegal/unaligned addresses | P0 | TC-REG-06 |
+| F-REG-05 | Zero reads, side-effect-free writes, and completion-cycle PSLVERR=1 for illegal/unaligned addresses | P0 | TC-REG-06 |
 | F-REG-06 | VERSION=0x0001_0000 | P1 | TC-REG-07 |
-| F-APB-01 | Setup→access, PREADY=1, PSLVERR=0 | P0 | TC-APB-01 |
+| F-APB-01 | Setup→access, PREADY=1, PSLVERR=0 for legal accesses, error response only in illegal completion cycles | P0 | TC-APB-01 |
 | F-APB-02 | Legal back-to-back reads/writes and direction changes | P1 | TC-APB-02 |
 | F-SPI-01 | Sampling edge, shift edge, and idle level in modes 0–3 | P0 | TC-SPI-01 |
 | F-SPI-02 | Single-frame 8-bit MSB-first transfer, CS boundary, and done | P0 | TC-SPI-02 |
@@ -228,32 +229,41 @@ This table contains only normative verification requirements derived from the sp
 | --- | --- | --- |
 | `smoke_test` | TC-SPI-02 | Basic APB→SPI→RX loop |
 | `apb_reg_access_test` | TC-REG-01/02/03/04/05/07 | Broad register access and side effects |
-| `apb_reg_semantics_test` | TC-REG-01/04/05/06/07 | Reset, WO/RO, illegal address, VERSION |
+| `apb_reg_semantics_test` | TC-REG-01/04/05/06/07 | Reset, WO/RO, illegal read data/side effects, VERSION |
+| `pslverr_test` | TC-REG-06, TC-APB-01 | Completion-cycle PSLVERR=1 for illegal/unaligned addresses; PSLVERR=0 for legal addresses and legal special accesses |
+| `apb_back_to_back_test` | TC-APB-02 | Legal APB back-to-back reads/writes, consecutive same-direction accesses, and direction changes |
 | `mode_sweep_test` | TC-SPI-01/02, TC-CONT-02 | Single frame in each SPI mode |
+| `tx_rx_en_control_test` | TC-SPI-03 | All tx_en/rx_en combinations, dummy transmit, RX suppression, and dual-disable no-op |
+| `start_rejection_test` | TC-SPI-04 | Accepted start, disabled/dual-disable rejection, underflow, busy ignore, and reset priority |
 | `clkdiv_test` | TC-CLK-01/02 | Divider equation, 0/1/max, random values |
 | `fifo_basic_test` | TC-FIFO-01, TC-CONT-01 | Continuous TX/RX FIFO ordering |
 | `fifo_boundary_test` | TC-FIFO-02/03, TC-IRQ-03 | Full boundaries, overflow, underflow |
 | `cont_mode_test` | TC-CONT-01 | Multiple frames in one CS window |
 | `irq_basic_test` | TC-IRQ-01/04 | Basic underflow, done, mask, and clear path |
-| `irq_stress_test` | TC-IRQ-01/02/03/04/05 | Multiple sources, mask changes, clear, software reset |
+| `irq_stress_test` | TC-IRQ-01/02/03/04 | Multiple sources, mask changes, clear, software reset |
+| `irq_clear_priority_test` | TC-IRQ-05 | Level clear has no effect; clear wins when sticky event and IRQ_CLEAR occur in the same cycle |
 | `soft_reset_test` | TC-RST-02/03 | Active software reset and recovery |
+| `cold_reset_test` | TC-RST-01 | Safe outputs during/after reset and defaults of all 12 registers |
 
 ### 8.2 Directed Scenarios Required Before Sign-off
 
 | Scenario | Expected result |
 | --- | --- |
-| Unaligned addresses `0x01/0x03/0x31` | Read zero, no write effect, PSLVERR=0 |
-| Start with enable=0 | No transfer and no underflow |
-| Start with tx_en=rx_en=0 | No transfer and no underflow |
-| tx_en=0, rx_en=1 | MOSI=0x00 and one received frame; cont=1 does not auto-continue |
-| tx_en=1, rx_en=0 | Normal transmit and no RX FIFO increment |
-| Start while busy | Current frame unaffected and no extra frame |
-| start and soft_reset in one write | Reset wins and no frame starts |
+| Unaligned addresses `0x01/0x03/0x31` | Read zero, no write effect, completion-cycle PSLVERR=1 |
+| Defined special accesses: RO write, WO read, empty RX read, full TX write | Apply defined semantics with PSLVERR=0 |
 | Event and IRQ_CLEAR in one cycle | Sticky bit remains clear |
 | Multiple cont=0 frames | Wait for IDLE before each start; independent CS windows |
-| Cold-reset outputs | CS=1, MOSI=0, SCLK=reset CPOL, irq=0, no X/Z |
 
 Randomized tests must record their seed and be reproducible with one seed.
+
+### 8.3 APB Error-Response Status
+
+- `apb_reg_block` returns `PSLVERR=1` in the completion cycle of illegal/unaligned accesses and `PSLVERR=0` for legal addresses, per the specification.
+- The APB driver, monitor, transaction, and RAL adapter propagate `slverr`.
+- `apb_protocol_sva` checks no error for legal addresses, error for illegal addresses, and `PSLVERR` only during illegal-access completion cycles.
+- `pslverr_test` covers illegal aligned/unaligned addresses, legal special accesses, and no side effects from illegal writes.
+
+The basic directed checks for F-REG-05 and F-APB-01 are closed by `pslverr_test`.
 
 ---
 
@@ -271,6 +281,7 @@ Randomized tests must record their seed and be reproducible with one seed.
 ### 9.2 Required Additions
 
 - All 12 legal addresses, illegal aligned addresses, and unaligned addresses.
+- Legal/illegal × read/write × PSLVERR response, with PSLVERR valid only in completion cycles.
 - RW/RO/WO/reserved access type plus completed-result events.
 - CLKDIV bins: 0, 1, 2–7, 8–63, 64–254, 255.
 - Start result: accepted, disabled, underflow, both-disabled, busy-ignored, reset-priority.
@@ -302,7 +313,8 @@ Constants, unreachable defensive branches, and tool-generated logic may be waive
 | --- | --- |
 | APB setup→access | Access follows setup on the next cycle |
 | APB always-ready | PREADY=1 during access |
-| APB no-error | PSLVERR=0 during access |
+| APB legal no-error | PSLVERR=0 in legal-address completion cycles |
+| APB illegal error | PSLVERR=1 in illegal/unaligned completion cycles and never asserted in other cycles |
 | CS/status consistency | `status_cs_active == !spi_cs_n` |
 | Busy/CS consistency | CS is active while busy |
 | Idle SCLK | SCLK=CPOL while CS is inactive |
@@ -313,6 +325,8 @@ Constants, unreachable defensive branches, and tool-generated logic may be waive
 | --- | --- | ---: |
 | AS-APB-01 | `PENABLE -> PSEL` | P0 |
 | AS-APB-02 | Stable PADDR/PWRITE/PWDATA from setup through access | P0 |
+| AS-APB-03 | PSLVERR=0 on completion of a legal access | P0 |
+| AS-APB-04 | PSLVERR=1 on illegal/unaligned completion and zero otherwise | P0 |
 | AS-SPI-01 | SCLK changes only while CS is active | P0 |
 | AS-SPI-02 | Exactly eight sample edges per frame | P0 |
 | AS-SPI-03 | MOSI stable at sample edge and updated only by frame preload or shift edge | P0 |
@@ -336,18 +350,22 @@ Run on each RTL/TB commit or pull request, targeting completion within five minu
 
 ```text
 apb_reg_semantics_test
+pslverr_test
+apb_back_to_back_test
 smoke_test
 mode_sweep_test
 fifo_basic_test
 irq_basic_test
+irq_clear_priority_test
 soft_reset_test
+cold_reset_test
 ```
 
 The pass requirement is 100%, with zero UVM_ERROR/FATAL and zero assertion failures.
 
 ### 11.2 Base
 
-- Run all 11 executable tests under `tb/tests/`, excluding `apb_spi_base_test`, every day.
+- Run all 17 executable tests under `tb/tests/`, excluding `apb_spi_base_test`, every day.
 - Directed tests run at least seed 1. Tests containing randomization run at least five fixed reproducible seeds.
 - The required pass rate is 100%; there is no “2% allowed failure” rule.
 - Archive the failure log, seed, commit ID, and simulator version.

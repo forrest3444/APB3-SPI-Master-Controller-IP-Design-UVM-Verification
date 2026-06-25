@@ -57,6 +57,7 @@ module apb_reg_block #(
     logic [4:0]  irq_en_q;
     logic        write_access;
     logic        read_access;
+    logic        legal_addr;
     logic [11:0] addr_dec;
 
     assign write_access = psel && penable && pwrite;
@@ -64,7 +65,25 @@ module apb_reg_block #(
     assign addr_dec     = 12'(paddr);
 
     assign pready  = 1'b1;
-    assign pslverr = 1'b0;
+    assign pslverr = psel && penable && !legal_addr;
+
+    always_comb begin
+        unique case (addr_dec)
+            REG_CTRL_ADDR,
+            REG_STATUS_ADDR,
+            REG_CLKDIV_ADDR,
+            REG_TXDATA_ADDR,
+            REG_RXDATA_ADDR,
+            REG_IRQ_EN_ADDR,
+            REG_IRQ_RAW_ADDR,
+            REG_IRQ_STATUS_ADDR,
+            REG_IRQ_CLEAR_ADDR,
+            REG_TXFIFO_LVL_ADDR,
+            REG_RXFIFO_LVL_ADDR,
+            REG_VERSION_ADDR:    legal_addr = 1'b1;
+            default:             legal_addr = 1'b0;
+        endcase
+    end
 
     assign start_pulse      = write_access && (addr_dec == REG_CTRL_ADDR) && pwdata[CTRL_START_BIT];
     assign soft_reset_pulse = write_access && (addr_dec == REG_CTRL_ADDR) && pwdata[CTRL_SOFT_RESET_BIT];

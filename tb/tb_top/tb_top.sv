@@ -7,8 +7,6 @@ module tb_top;
 
     logic pclk;
     logic presetn;
-    logic irq;
-
     apb_if apb_vif (
         .pclk    (pclk),
         .presetn (presetn)
@@ -31,7 +29,7 @@ module tb_top;
         .spi_mosi (spi_vif.spi_mosi),
         .spi_miso (spi_vif.spi_miso),
         .spi_cs_n (spi_vif.spi_cs_n),
-        .irq      (irq)
+        .irq      (apb_vif.irq)
     );
 
     initial begin
@@ -51,6 +49,18 @@ module tb_top;
         uvm_config_db#(virtual apb_if)::set(null, "uvm_test_top", "apb_vif", apb_vif);
         uvm_config_db#(virtual spi_if)::set(null, "uvm_test_top", "spi_vif", spi_vif);
         run_test();
+    end
+
+    always @(apb_vif.irq_evt_force_valid or apb_vif.irq_evt_force_value) begin
+        if (apb_vif.irq_evt_force_valid) begin
+            force dut.evt_done         = apb_vif.irq_evt_force_value[0];
+            force dut.evt_tx_underflow = apb_vif.irq_evt_force_value[1];
+            force dut.evt_rx_overflow  = apb_vif.irq_evt_force_value[2];
+        end else begin
+            release dut.evt_done;
+            release dut.evt_tx_underflow;
+            release dut.evt_rx_overflow;
+        end
     end
 
     initial begin

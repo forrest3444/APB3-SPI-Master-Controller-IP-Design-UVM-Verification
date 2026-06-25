@@ -4,6 +4,7 @@ bind apb_spi_master_top apb_protocol_sva u_apb_protocol_sva (
     .PRESETn (PRESETn),
     .PSEL    (PSEL),
     .PENABLE (PENABLE),
+    .PADDR   (PADDR),
     .PREADY  (PREADY),
     .PSLVERR (PSLVERR)
 );

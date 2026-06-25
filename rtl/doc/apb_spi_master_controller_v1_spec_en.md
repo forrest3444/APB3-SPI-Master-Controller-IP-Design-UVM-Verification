@@ -60,7 +60,7 @@ To control complexity, v1 explicitly freezes the following key constraints:
 - Single chip select
 - Fixed 8-bit frame
 - MSB-first only
-- APB always-ready
+- APB zero-wait completion with `PSLVERR` on illegal accesses
 - No DMA
 - No multi-master
 - No wait-state extension
@@ -234,16 +234,20 @@ v1 uses an APB3-style interface.
 
 **Frozen v1 semantics**
 
-- `PREADY = 1'b1`
-- `PSLVERR = 1'b0`
+- `PREADY = 1'b1`; every APB transfer completes without a wait state
+- `PSLVERR` is asserted only in the completion cycle of an illegal access
+- `PSLVERR = 1'b0` outside a completed illegal access
 
 **Notes**
 
 - v1 does not implement wait-state insertion
-- v1 does not report errors through the APB error channel
 - Register offsets are word-aligned. Any address that does not exactly match a
   defined offset, including an unaligned address, is illegal.
-- Illegal address reads return `32'h0000_0000`; illegal writes are ignored
+- Illegal address reads return `32'h0000_0000`; illegal writes are ignored;
+  both complete with `PSLVERR = 1'b1`
+- Accesses to a defined address complete with `PSLVERR = 1'b0`, including RO
+  writes, WO reads, RXDATA reads while empty, and TXDATA writes while full.
+  Those cases follow their defined register semantics and are not APB errors
 
 ### 4.2 SPI Interface
 **Outputs**
@@ -693,7 +697,9 @@ In v1:
 - Illegal address read, including an unaligned address: return
   `32'h0000_0000`
 - Illegal address write: ignore
-- Do not assert `PSLVERR`
+- Keep `PREADY = 1'b1`
+- Assert `PSLVERR` during the APB completion cycle (`PSEL && PENABLE && PREADY`)
+- Deassert `PSLVERR` outside that completion cycle
 
 ---
 
@@ -1080,7 +1086,7 @@ This approach:
 The following items are frozen in v1 and shall not be changed casually during RTL development:
 
 1. Top level exposes only APB / SPI / IRQ / clk / reset
-2. APB always-ready
+2. APB zero-wait completion with illegal-access error response
 3. Single chip select
 4. 8-bit frame only
 5. MSB-first only

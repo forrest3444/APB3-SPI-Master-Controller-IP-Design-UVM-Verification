@@ -1,16 +1,22 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -o pipefail -c
+
 ###############################################################################
 # Project / Test Configuration
 ###############################################################################
-TB_TOP    ?= tb_top
-TESTNAME  ?= smoke_test
-SEED      ?= 1
-VERB      ?= UVM_MEDIUM
-RUN_TIME  ?= 1s
+TB_TOP     ?= tb_top
+TESTNAME   ?= smoke_test
+SEED       ?= 1
+VERB       ?= UVM_MEDIUM
+RUN_TIME   ?= 1s
 BUILD_NAME ?= default
-COV       ?= 1
-FSDB      ?= 1
-ASSERT    ?= 1
-DEBUG     ?= 0
+
+# Keep default runs lightweight. Enable waveform/coverage explicitly for debug
+# or coverage regression.
+COV        ?= 0
+FSDB       ?= 0
+ASSERT     ?= 1
+DEBUG      ?= 0
 
 SIM       ?= sim
 BUILD_DIR := $(SIM)/build/$(BUILD_NAME)
@@ -28,6 +34,9 @@ SIMV_IMAGE := $(SIMV_DIR)/$(TB_TOP).simv
 SIMV_VDB   := $(SIMV_DIR)/$(TB_TOP).simv.vdb
 
 FILELIST  ?= ./filelist.f
+
+# Free-form runtime plusargs, e.g. USER_SIM_OPTS="+FOO=1 +BAR=2".
+USER_SIM_OPTS ?=
 
 ###############################################################################
 # Tools
@@ -48,13 +57,14 @@ VCS_BASE_OPTS = -full64                 \
                 -nc                     \
                 $(INC_DIR)
 
-VCS_WAVE_OPTS  = -kdb                   \
-                 -debug_access         \
-                 -lca
+# debug_access is required by both VPD ($vcdplus*) and FSDB ($fsdb*) in tb_top.
+# kdb is FSDB-specific; -lca is required by newer VCS versions for -kdb.
+VCS_DBG_OPTS   = -debug_access
+VCS_FSDB_OPTS  = -kdb -lca
 
 VCS_DEBUG_OPTS = -debug_access+all
 
-VCS_OPTS = $(VCS_BASE_OPTS) $(VCS_WAVE_OPTS)
+VCS_OPTS = $(VCS_BASE_OPTS) $(VCS_DBG_OPTS)
 
 ###############################################################################
 # Optional Feature Switches
@@ -65,6 +75,10 @@ endif
 
 ifneq ($(DEBUG),0)
 VCS_OPTS += $(VCS_DEBUG_OPTS) +define+DEBUG
+endif
+
+ifneq ($(FSDB),0)
+VCS_OPTS += $(VCS_FSDB_OPTS)
 endif
 
 ifneq ($(COV),0)
@@ -82,13 +96,14 @@ endif
 SIM_OPTS = +ntb_random_seed=$(SEED)  \
            +UVM_TESTNAME=$(TESTNAME) \
            +UVM_VERBOSITY=$(VERB)    \
-           +vcs+watchdog+time=5ms
+           +vcs+watchdog+time=5ms    \
+           $(USER_SIM_OPTS)
 
 ###############################################################################
 # Targets
 ###############################################################################
 .PHONY: all prepare_build prepare_run check_elab elab run sim regression verdi merge_cov \
-        clean clean_build clean_run clean_all help
+        clean clean_run clean_cov clean_reports clean_build clean_misc clean_all help
 
 all: sim
 
@@ -130,6 +145,10 @@ regression:
 	TB_TOP=$(TB_TOP)                \
 	FILELIST=$(FILELIST)            \
 	BUILD_NAME=$(BUILD_NAME)        \
+	COV=$(COV)                      \
+	FSDB=$(FSDB)                    \
+	ASSERT=$(ASSERT)                \
+	DEBUG=$(DEBUG)                  \
 	$(REGRESSION_SCRIPT)
 
 verdi:
@@ -161,11 +180,13 @@ merge_cov:
 # -----------------------------------------------------------------------------
 # Clean targets
 # -----------------------------------------------------------------------------
-# clean_build  — remove compile / elaboration artifacts
-# clean_run    — remove per-test simulation run artifacts (logs, waves, cov,
-#                plus VCS/Verdi litter: novas*, DVEfiles, verdiLog, ucli.key, etc.)
-# clean        — clean_build + clean_run (default)
-# clean_all    — wipe everything under sim/ AND all stray tool litter everywhere
+# clean_run     — remove per-test simulation outputs only.
+# clean_cov     — remove merged coverage output.
+# clean_reports — remove coverage reports.
+# clean_build   — remove compile/elaboration artifacts.
+# clean_misc    — remove stray VCS/Verdi/DVE files.
+# clean         — default cleanup for daily use; keeps the shared build.
+# clean_all     — full cleanup, including build and stray tool files.
 # -----------------------------------------------------------------------------
 
 # VCS compile intermediates that can appear at tb/ or in subdir sandboxes
@@ -175,22 +196,30 @@ STRAY_COMPILE = csrc *.daidir vc_hdrs.h
 STRAY_RUNTIME = ucli.key DVEfiles verdiLog novas.conf novas.rc novas_dump.log \
                 novas.*.log inter.vpd *.vpd *.fsdb *.vdb cm.log tr_db.log
 
+clean_run:
+	rm -rf $(SIM)/run
+	rm -rf ral/$(SIM)/run
+
+clean_cov:
+	rm -rf $(MERGED_COV_DIR)
+
+clean_reports:
+	rm -rf $(MERGED_COV_REPORT_DIR) urgReport ral/urgReport
+
 clean_build:
 	rm -rf $(SIM)/build $(STRAY_COMPILE)
 	rm -rf ral/$(SIM)/build ral/csrc ral/*.daidir ral/vc_hdrs.h
 
-clean_run:
-	rm -rf $(SIM)/run $(MERGED_COV_DIR) $(MERGED_COV_REPORT_DIR)
+clean_misc:
 	rm -rf $(SIM)/DVEfiles $(SIM)/verdiLog $(SIM)/novas.*
 	rm -rf $(STRAY_RUNTIME)
-	rm -rf ral/$(SIM)/run ral/DVEfiles ral/verdiLog ral/novas.* ral/ucli.key \
+	rm -rf ral/DVEfiles ral/verdiLog ral/novas.* ral/ucli.key \
 	       ral/inter.vpd ral/*.vpd ral/*.fsdb ral/*.vdb ral/cm.log ral/tr_db.log
 
-clean: clean_build clean_run
+clean: clean_run clean_cov clean_reports
 
-clean_all:
+clean_all: clean clean_build clean_misc
 	rm -rf $(SIM)
-	rm -rf $(STRAY_COMPILE) $(STRAY_RUNTIME)
 	rm -rf ral/$(SIM) ral/csrc ral/*.daidir ral/vc_hdrs.h ral/DVEfiles \
 	       ral/verdiLog ral/novas* ral/ucli.key ral/inter.vpd ral/*.vpd \
 	       ral/*.fsdb ral/*.vdb ral/cm.log ral/tr_db.log
@@ -211,10 +240,13 @@ help:
 	@echo "  regression   Run the full regression suite via run_regression.sh"
 	@echo "  verdi        Open waveform in Verdi"
 	@echo "  merge_cov    Merge sim/run/*/cov.vdb into merged_cov.vdb and write HTML report"
-	@echo "  clean        Clean build + run artifacts (default)"
-	@echo "  clean_build  Clean compile / elaboration artifacts only"
-	@echo "  clean_run    Clean simulation run artifacts + VCS/Verdi litter"
-	@echo "  clean_all    Wipe sim/ and all stray tool litter under tb/"
+	@echo "  clean        Clean run outputs, merged coverage, and reports"
+	@echo "  clean_run    Clean per-test simulation outputs only"
+	@echo "  clean_cov    Clean merged coverage database"
+	@echo "  clean_reports Clean coverage reports"
+	@echo "  clean_build  Clean compile / elaboration artifacts"
+	@echo "  clean_misc   Clean stray VCS/Verdi/DVE files"
+	@echo "  clean_all    Wipe sim/ and all generated tool artifacts"
 	@echo ""
 	@echo "Defaults:"
-	@echo "  COV=1 FSDB=1 ASSERT=1 DEBUG=0"
+	@echo "  COV=0 FSDB=0 ASSERT=1 DEBUG=0"

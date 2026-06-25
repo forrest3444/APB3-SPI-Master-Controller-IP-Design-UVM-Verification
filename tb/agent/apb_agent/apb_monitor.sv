@@ -25,14 +25,14 @@ class apb_monitor extends uvm_component;
                 continue;
             end
 
-            if (cfg.vif.mon_cb.psel && cfg.vif.mon_cb.penable && cfg.vif.mon_cb.pready) begin
+            if (cfg.vif.psel && cfg.vif.penable && cfg.vif.pready) begin
                 tr = apb_trans::type_id::create("tr");
-                tr.is_write = cfg.vif.mon_cb.pwrite;
-                tr.addr     = cfg.vif.mon_cb.paddr;
-                tr.wdata    = cfg.vif.mon_cb.pwdata;
-                tr.rdata    = cfg.vif.mon_cb.prdata;
-                tr.ready    = cfg.vif.mon_cb.pready;
-                tr.slverr   = cfg.vif.mon_cb.pslverr;
+                tr.is_write = cfg.vif.pwrite;
+                tr.addr     = cfg.vif.paddr;
+                tr.wdata    = cfg.vif.pwdata;
+                tr.rdata    = cfg.vif.prdata;
+                tr.ready    = cfg.vif.pready;
+                tr.slverr   = cfg.vif.pslverr;
                 ap.write(tr);
             end
         end

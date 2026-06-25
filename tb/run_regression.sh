@@ -12,6 +12,10 @@ VERB=${VERB:-UVM_MEDIUM}
 TB_TOP=${TB_TOP:-tb_top}
 FILELIST=${FILELIST:-./filelist.f}
 BUILD_NAME=${BUILD_NAME:-regression}
+COV=${COV:-1}
+FSDB=${FSDB:-1}
+ASSERT=${ASSERT:-1}
+DEBUG=${DEBUG:-0}
 
 discover_tests() {
     find "$SCRIPT_DIR/tests" -maxdepth 1 -name '*_test.sv' -printf '%f\n' \
@@ -56,7 +60,7 @@ echo "  seed     : $SEED"
 echo "  run_time : $RUN_TIME"
 echo "  verbosity: $VERB"
 echo "  build    : $BUILD_NAME"
-echo "  switches : FSDB=1 COV=1 ASSERT=1 DEBUG=0"
+echo "  switches : FSDB=$FSDB COV=$COV ASSERT=$ASSERT DEBUG=$DEBUG"
 echo
 
 echo "============================================================"
@@ -69,9 +73,10 @@ if ! "${MAKE_CMD[@]}" elab \
     TB_TOP="$TB_TOP" \
     FILELIST="$FILELIST" \
     BUILD_NAME="$BUILD_NAME" \
-    FSDB=1 \
-    COV=1 \
-    ASSERT=1; then
+    FSDB="$FSDB" \
+    COV="$COV" \
+    ASSERT="$ASSERT" \
+    DEBUG="$DEBUG"; then
     echo "Shared build failed"
     exit 1
 fi
@@ -93,9 +98,10 @@ for testname in "${TESTS[@]}"; do
         TB_TOP="$TB_TOP" \
         FILELIST="$FILELIST" \
         BUILD_NAME="$BUILD_NAME" \
-        FSDB=1 \
-        COV=1 \
-        ASSERT=1 && ! run_log_has_failures "$run_log"; then
+        FSDB="$FSDB" \
+        COV="$COV" \
+        ASSERT="$ASSERT" \
+        DEBUG="$DEBUG" && ! run_log_has_failures "$run_log"; then
         PASS_TESTS+=("$testname")
         echo "[PASS] $testname"
     else

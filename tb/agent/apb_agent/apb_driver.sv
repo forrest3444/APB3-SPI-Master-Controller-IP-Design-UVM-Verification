@@ -40,12 +40,12 @@ class apb_driver extends uvm_driver #(apb_trans);
 
         do begin
             @(posedge cfg.vif.pclk);
-        end while (cfg.vif.mon_cb.pready !== 1'b1);
+        end while (cfg.vif.pready !== 1'b1);
 
-        tr.ready  = cfg.vif.mon_cb.pready;
-        tr.slverr = cfg.vif.mon_cb.pslverr;
+        tr.ready  = cfg.vif.pready;
+        tr.slverr = cfg.vif.pslverr;
         if (!tr.is_write) begin
-            tr.rdata = cfg.vif.mon_cb.prdata;
+            tr.rdata = cfg.vif.prdata;
         end
 
         cfg.vif.drv_cb.psel    <= 1'b0;
