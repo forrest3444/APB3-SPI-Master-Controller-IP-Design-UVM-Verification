@@ -232,6 +232,7 @@ SPEC requirement → Feature ID → Logical TC ID → executable UVM test
 | `apb_reg_semantics_test` | TC-REG-01/04/05/06/07 | 复位、WO/RO、非法地址数据/副作用、VERSION |
 | `pslverr_test` | TC-REG-06, TC-APB-01 | 非法/非对齐地址完成周期 PSLVERR=1；合法地址和合法特殊访问 PSLVERR=0 |
 | `apb_back_to_back_test` | TC-APB-02 | 合法 APB 背靠背读写、连续读写和读写方向切换 |
+| `cfg_cross_coverage_test` | TC-SPI-01/03, TC-CONT-01/02 | 关闭合法 mode/cont/txrx 交叉覆盖缺口 |
 | `mode_sweep_test` | TC-SPI-01/02, TC-CONT-02 | 四种 SPI 模式的单帧传输 |
 | `tx_rx_en_control_test` | TC-SPI-03 | tx_en/rx_en 四组合、dummy 发送、RX 抑制和双禁用 no-op |
 | `start_rejection_test` | TC-SPI-04 | start 接受、disable/双禁用拒绝、underflow、busy 忽略及 reset 优先级 |
@@ -273,7 +274,7 @@ F-REG-05 和 F-APB-01 的基本定向检查由 `pslverr_test` 关闭。
 
 | Covergroup | 当前覆盖内容 | 限制 |
 | --- | --- | --- |
-| `cfg_cg` | mode、cont、tx/rx enable 及其交叉；CLKDIV 粗分档 | CLKDIV=0 未独立；交叉需增加 ignore_bins |
+| `cfg_cg` | mode、cont、tx/rx enable 及其交叉；CLKDIV 粗分档；交叉已忽略 tx/rx 双禁用和纯 RX 连续模式 | CLKDIV=0 未独立 |
 | `fifo_cg` | TX/RX empty、partial、full | 由 STATUS 读触发，不能证明每次边界转换正确 |
 | `irq_cg` | 5 类 IRQ 源出现 | 尚未覆盖 mask/clear/优先级生命周期 |
 | `frame_cg` | single/multi frame | 需明确连续窗口帧数 bins |
@@ -365,7 +366,7 @@ cold_reset_test
 
 ### 11.2 Base
 
-- 每日执行 `tb/tests/` 下除 `apb_spi_base_test` 外的全部 17 个可执行测试。
+- 每日执行 `tb/tests/` 下除 `apb_spi_base_test` 外的全部 18 个可执行测试。
 - 定向测试至少 seed 1；包含随机化的测试至少执行 5 个固定、可重放 seed。
 - 必须 100% 通过；不使用“允许 2% 失败”规则。
 - 归档失败日志、seed、提交 ID 和仿真器版本。

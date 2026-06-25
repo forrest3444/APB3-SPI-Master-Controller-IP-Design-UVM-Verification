@@ -5,6 +5,7 @@
 `include "apb_reg_access_vseq.sv"
 `include "apb_reg_semantics_vseq.sv"
 `include "apb_back_to_back_vseq.sv"
+`include "cfg_cross_coverage_vseq.sv"
 `include "clkdiv_test_vseq.sv"
 `include "mode_sweep_vseq.sv"
 `include "fifo_basic_vseq.sv"

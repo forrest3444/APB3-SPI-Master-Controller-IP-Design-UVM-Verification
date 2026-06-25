@@ -232,6 +232,7 @@ This table contains only normative verification requirements derived from the sp
 | `apb_reg_semantics_test` | TC-REG-01/04/05/06/07 | Reset, WO/RO, illegal read data/side effects, VERSION |
 | `pslverr_test` | TC-REG-06, TC-APB-01 | Completion-cycle PSLVERR=1 for illegal/unaligned addresses; PSLVERR=0 for legal addresses and legal special accesses |
 | `apb_back_to_back_test` | TC-APB-02 | Legal APB back-to-back reads/writes, consecutive same-direction accesses, and direction changes |
+| `cfg_cross_coverage_test` | TC-SPI-01/03, TC-CONT-01/02 | Closes legal mode/cont/txrx cross-coverage holes |
 | `mode_sweep_test` | TC-SPI-01/02, TC-CONT-02 | Single frame in each SPI mode |
 | `tx_rx_en_control_test` | TC-SPI-03 | All tx_en/rx_en combinations, dummy transmit, RX suppression, and dual-disable no-op |
 | `start_rejection_test` | TC-SPI-04 | Accepted start, disabled/dual-disable rejection, underflow, busy ignore, and reset priority |
@@ -273,7 +274,7 @@ The basic directed checks for F-REG-05 and F-APB-01 are closed by `pslverr_test`
 
 | Covergroup | Current content | Limitation |
 | --- | --- | --- |
-| `cfg_cg` | mode, cont, tx/rx enables, cross, coarse CLKDIV | No explicit CLKDIV=0; cross needs ignore_bins |
+| `cfg_cg` | mode, cont, tx/rx enables, cross, coarse CLKDIV; the cross ignores both-disabled tx/rx and receive-only continuous mode | No explicit CLKDIV=0 |
 | `fifo_cg` | TX/RX empty, partial, full | STATUS-read sampling does not prove every transition |
 | `irq_cg` | Occurrence of five IRQ sources | No mask/clear/priority lifecycle |
 | `frame_cg` | Single/multiple frame | Continuous-window frame-count bins need definition |
@@ -365,7 +366,7 @@ The pass requirement is 100%, with zero UVM_ERROR/FATAL and zero assertion failu
 
 ### 11.2 Base
 
-- Run all 17 executable tests under `tb/tests/`, excluding `apb_spi_base_test`, every day.
+- Run all 18 executable tests under `tb/tests/`, excluding `apb_spi_base_test`, every day.
 - Directed tests run at least seed 1. Tests containing randomization run at least five fixed reproducible seeds.
 - The required pass rate is 100%; there is no “2% allowed failure” rule.
 - Archive the failure log, seed, commit ID, and simulator version.

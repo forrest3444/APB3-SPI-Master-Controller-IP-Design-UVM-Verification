@@ -59,6 +59,8 @@ class apb_spi_scoreboard extends uvm_component;
 
     function void write_apb(apb_trans tr);
         bit [31:0] exp_status;
+        bit [31:0] exp_status_before;
+        bit [31:0] exp_status_after;
         bit [31:0] exp_irq_raw;
         bit [31:0] exp_irq_status;
         bit [7:0]  exp_rx;
@@ -147,7 +149,26 @@ class apb_spi_scoreboard extends uvm_component;
                     exp_status[STATUS_TX_FULL_BIT]              = (tx_fifo_level == 8);
                     exp_status[STATUS_RX_EMPTY_BIT]             = (rx_fifo_level == 0);
                     exp_status[STATUS_RX_FULL_BIT]              = (rx_fifo_level == 8);
-                    if ((tr.rdata & 32'h1e) !== exp_status) begin
+
+                    if (defer_pending_commit) begin
+                        exp_status_before = exp_status;
+                        commit_pending_frame_updates();
+
+                        exp_status_after = '0;
+                        exp_status_after[STATUS_TX_EMPTY_BIT] = (tx_fifo_level == 0);
+                        exp_status_after[STATUS_TX_FULL_BIT]  = (tx_fifo_level == 8);
+                        exp_status_after[STATUS_RX_EMPTY_BIT] = (rx_fifo_level == 0);
+                        exp_status_after[STATUS_RX_FULL_BIT]  = (rx_fifo_level == 8);
+
+                        if (((tr.rdata & 32'h1e) !== exp_status_before) &&
+                            ((tr.rdata & 32'h1e) !== exp_status_after)) begin
+                            `uvm_error(get_type_name(),
+                                       $sformatf("STATUS mismatch exp_before=0x%08h exp_after=0x%08h act=0x%08h",
+                                                 exp_status_before,
+                                                 exp_status_after,
+                                                 tr.rdata & 32'h1e))
+                        end
+                    end else if ((tr.rdata & 32'h1e) !== exp_status) begin
                         `uvm_error(get_type_name(),
                                    $sformatf("STATUS mismatch exp=0x%08h act=0x%08h", exp_status, tr.rdata & 32'h1e))
                     end
@@ -185,7 +206,7 @@ class apb_spi_scoreboard extends uvm_component;
             endcase
         end
 
-        if (defer_pending_commit) begin
+        if (defer_pending_commit && !(!tr.is_write && (tr.addr == REG_STATUS_ADDR))) begin
             commit_pending_frame_updates();
         end
     endfunction

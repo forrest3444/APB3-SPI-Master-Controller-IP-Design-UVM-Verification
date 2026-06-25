@@ -3,6 +3,7 @@
 `include "apb_reg_access_test.sv"
 `include "apb_reg_semantics_test.sv"
 `include "apb_back_to_back_test.sv"
+`include "cfg_cross_coverage_test.sv"
 `include "clkdiv_test.sv"
 `include "mode_sweep_test.sv"
 `include "fifo_basic_test.sv"

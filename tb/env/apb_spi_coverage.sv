@@ -26,7 +26,14 @@ class apb_spi_coverage extends uvm_component;
             bins mid  = {[3:8]};
             bins high = {[9:$]};
         }
-        mode_cross: cross cp_mode, cp_cont, cp_txrx;
+        mode_cross: cross cp_mode, cp_cont, cp_txrx {
+            // txrx={tx_en,rx_en}. 2'b00 is a no-op by spec, so mode/cont are irrelevant.
+            ignore_bins no_transfer = binsof(cp_txrx) intersect {0};
+
+            // Receive-only starts always execute one dummy frame; cont=1 does not auto-continue.
+            ignore_bins rx_only_cont = binsof(cp_cont) intersect {1} &&
+                                       binsof(cp_txrx) intersect {1};
+        }
     endgroup
 
     covergroup fifo_cg;
