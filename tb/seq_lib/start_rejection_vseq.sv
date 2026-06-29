@@ -36,12 +36,21 @@ class start_rejection_vseq extends apb_spi_base_vseq;
 
         set_clkdiv(8'd4);
 
-        // Disabled controller: start is ignored and the queued byte is retained.
+        // Disabled controller with empty TX FIFO: start is ignored without
+        // underflow. This covers the underflow guard vector
+        // {cfg_enable,cfg_tx_en,tx_fifo_empty}=3'b011.
         cfg_spi_mode(1'b0, 1'b0, 1'b0, 1'b1, 1'b1, 1'b0);
+        start_transfer();
+        check_no_cs_activity("enable=0 tx_empty=1");
+        check_no_event("enable=0 tx_empty=1");
+        check_reg_value("TXFIFO empty after disabled empty start", ral().txfifo_lvl, 32'h0);
+
+        // Disabled controller with non-empty TX FIFO: start is ignored and the
+        // queued byte is retained.
         push_tx_byte(8'ha5);
         start_transfer();
-        check_no_cs_activity("enable=0");
-        check_no_event("enable=0");
+        check_no_cs_activity("enable=0 tx_empty=0");
+        check_no_event("enable=0 tx_empty=0");
         check_reg_value("TXFIFO retained after disabled start", ral().txfifo_lvl, 32'h1);
 
         // The same queued byte starts normally once enable is set.

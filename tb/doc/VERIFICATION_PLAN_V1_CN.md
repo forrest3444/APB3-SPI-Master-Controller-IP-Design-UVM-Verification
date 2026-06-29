@@ -234,7 +234,7 @@ SPEC requirement → Feature ID → Logical TC ID → executable UVM test
 | `apb_back_to_back_test` | TC-APB-02 | 合法 APB 背靠背读写、连续读写和读写方向切换 |
 | `cfg_cross_coverage_test` | TC-SPI-01/03, TC-CONT-01/02 | 关闭合法 mode/cont/txrx 交叉覆盖缺口 |
 | `mode_sweep_test` | TC-SPI-01/02, TC-CONT-02 | 四种 SPI 模式的单帧传输 |
-| `tx_rx_en_control_test` | TC-SPI-03 | tx_en/rx_en 四组合、dummy 发送、RX 抑制和双禁用 no-op |
+| `tx_rx_en_control_test` | TC-SPI-03 | tx_en/rx_en 四组合、dummy 发送、RX 抑制、双禁用 no-op，以及 TX FIFO 非空时的 RX-only `cont=1` 场景 |
 | `start_rejection_test` | TC-SPI-04 | start 接受、disable/双禁用拒绝、underflow、busy 忽略及 reset 优先级 |
 | `clkdiv_test` | TC-CLK-01/02 | 分频公式、0/1/最大值和随机值 |
 | `fifo_basic_test` | TC-FIFO-01, TC-CONT-01 | 连续 TX/RX FIFO 顺序 |
@@ -275,7 +275,7 @@ F-REG-05 和 F-APB-01 的基本定向检查由 `pslverr_test` 关闭。
 | Covergroup | 当前覆盖内容 | 限制 |
 | --- | --- | --- |
 | `cfg_cg` | mode、cont、tx/rx enable 及其交叉；CLKDIV 粗分档；交叉已忽略 tx/rx 双禁用和纯 RX 连续模式 | CLKDIV=0 未独立 |
-| `fifo_cg` | TX/RX empty、partial、full | 由 STATUS 读触发，不能证明每次边界转换正确 |
+| `fifo_cg` | TX/RX 精确 level：empty、1..7、full | 由 TXFIFO_LVL/RXFIFO_LVL 读触发；仍需定向测试覆盖每个中间水位 |
 | `irq_cg` | 5 类 IRQ 源出现 | 尚未覆盖 mask/clear/优先级生命周期 |
 | `frame_cg` | single/multi frame | 需明确连续窗口帧数 bins |
 

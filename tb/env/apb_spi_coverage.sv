@@ -14,6 +14,8 @@ class apb_spi_coverage extends uvm_component;
     int unsigned cg_rx_level;
     int unsigned cg_irq_kind;
     bit          cg_is_multi;
+    bit          cg_sample_tx_level;
+    bit          cg_sample_rx_level;
     int unsigned last_window_id;
 
     covergroup cfg_cg;
@@ -38,12 +40,12 @@ class apb_spi_coverage extends uvm_component;
 
     covergroup fifo_cg;
         option.per_instance = 1;
-        cp_tx_level: coverpoint cg_tx_level {
+        cp_tx_level: coverpoint cg_tx_level iff (cg_sample_tx_level) {
             bins empty = {0};
             bins mid[] = {[1:7]};
             bins full = {8};
         }
-        cp_rx_level: coverpoint cg_rx_level {
+        cp_rx_level: coverpoint cg_rx_level iff (cg_sample_rx_level) {
             bins empty = {0};
             bins mid[] = {[1:7]};
             bins full = {8};
@@ -99,10 +101,6 @@ class apb_spi_coverage extends uvm_component;
         end else begin
             case (tr.addr)
                 REG_STATUS_ADDR: begin
-                    cg_tx_level = tr.rdata[STATUS_TX_EMPTY_BIT] ? 0 : (tr.rdata[STATUS_TX_FULL_BIT] ? 8 : 1);
-                    cg_rx_level = tr.rdata[STATUS_RX_EMPTY_BIT] ? 0 : (tr.rdata[STATUS_RX_FULL_BIT] ? 8 : 1);
-                    fifo_cg.sample();
-
                     if (tr.rdata[STATUS_DONE_PENDING_BIT]) begin
                         cg_irq_kind = IRQ_DONE_BIT;
                         irq_cg.sample();
@@ -115,6 +113,22 @@ class apb_spi_coverage extends uvm_component;
                         cg_irq_kind = IRQ_RX_OVERFLOW_BIT;
                         irq_cg.sample();
                     end
+                end
+
+                REG_TXFIFO_LVL_ADDR: begin
+                    cg_tx_level        = tr.rdata[3:0];
+                    cg_sample_tx_level = 1'b1;
+                    cg_sample_rx_level = 1'b0;
+                    fifo_cg.sample();
+                    cg_sample_tx_level = 1'b0;
+                end
+
+                REG_RXFIFO_LVL_ADDR: begin
+                    cg_rx_level        = tr.rdata[3:0];
+                    cg_sample_tx_level = 1'b0;
+                    cg_sample_rx_level = 1'b1;
+                    fifo_cg.sample();
+                    cg_sample_rx_level = 1'b0;
                 end
 
                 REG_IRQ_RAW_ADDR,

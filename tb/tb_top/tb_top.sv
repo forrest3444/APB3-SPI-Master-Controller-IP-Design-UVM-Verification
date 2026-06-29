@@ -43,6 +43,11 @@ module tb_top;
         spi_vif.spi_miso = 1'b0;
         repeat (5) @(posedge pclk);
         presetn = 1'b1;
+
+        forever begin
+            @(apb_vif.presetn_drive_req);
+            presetn = apb_vif.presetn_drive_value;
+        end
     end
 
     initial begin

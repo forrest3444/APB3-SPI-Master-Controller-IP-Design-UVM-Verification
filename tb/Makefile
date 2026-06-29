@@ -28,6 +28,9 @@ COV_DIR       := $(RUN_DIR)/cov.vdb
 SIMV_DIR      := $(BUILD_DIR)/simv
 MERGED_COV_DIR ?= $(SIM)/merged_cov.vdb
 MERGED_COV_REPORT_DIR ?= $(SIM)/merged_cov_report
+# DVE-exported waiver file. The merged coverage database remains raw; this file
+# is loaded by DVE when reviewing coverage after manual waiver approval.
+COV_WAIVER_EL ?= ./cov_waivers/dve_waivers.el
 REGRESSION_SCRIPT ?= ./run_regression.sh
 REGRESSION_RUN_TIME ?= $(RUN_TIME)
 SIMV_IMAGE := $(SIMV_DIR)/$(TB_TOP).simv
@@ -44,6 +47,7 @@ USER_SIM_OPTS ?=
 VCS       ?= vcs
 VERDI     ?= verdi
 URG       ?= urg
+DVE       ?= dve
 
 ###############################################################################
 # Compile / Runtime Options
@@ -81,9 +85,13 @@ ifneq ($(FSDB),0)
 VCS_OPTS += $(VCS_FSDB_OPTS)
 endif
 
+COV_HIER ?= ./coverage.cfg
+
 ifneq ($(COV),0)
-VCS_OPTS += -cm line+cond+fsm+branch+tgl+assert
-SIM_COV_OPTS = -cm line+cond+fsm+branch+tgl+assert -cm_dir $(COV_DIR)
+VCS_OPTS += -cm line+cond+fsm+branch+tgl+assert \
+            -cm_hier $(COV_HIER)                 \
+            -cm_name $(BUILD_NAME)
+SIM_COV_OPTS = -cm line+cond+fsm+branch+tgl+assert -cm_dir $(COV_DIR) -cm_name $(BUILD_NAME)
 endif
 
 ifneq ($(FSDB),0)
@@ -102,7 +110,8 @@ SIM_OPTS = +ntb_random_seed=$(SEED)  \
 ###############################################################################
 # Targets
 ###############################################################################
-.PHONY: all prepare_build prepare_run check_elab elab run sim regression verdi merge_cov \
+.PHONY: all prepare_build prepare_run check_elab elab run sim regression cov_regression \
+        verdi merge_cov view_cov \
         clean clean_run clean_cov clean_reports clean_build clean_misc clean_all help
 
 all: sim
@@ -151,6 +160,10 @@ regression:
 	DEBUG=$(DEBUG)                  \
 	$(REGRESSION_SCRIPT)
 
+cov_regression: clean
+	$(MAKE) regression COV=1 FSDB=0 ASSERT=$(ASSERT) DEBUG=$(DEBUG)
+	$(MAKE) merge_cov
+
 verdi:
 	$(VERDI) -sv                        \
 	         -f $(FILELIST)             \
@@ -176,6 +189,20 @@ merge_cov:
 	done; \
 	echo "Merging coverage into $(MERGED_COV_DIR)"; \
 	$(URG) $$urg_args -dbname $(MERGED_COV_DIR) -report $(MERGED_COV_REPORT_DIR)
+
+view_cov:
+	@if [ ! -d "$(MERGED_COV_DIR)" ]; then \
+	  echo "Merged coverage database not found: $(MERGED_COV_DIR)"; \
+	  echo "Run 'make cov_regression' or 'make merge_cov' first."; \
+	  exit 1; \
+	fi
+	@if [ -f "$(COV_WAIVER_EL)" ]; then \
+	  echo "Opening DVE with waiver file: $(COV_WAIVER_EL)"; \
+	  $(DVE) -cov -dir $(MERGED_COV_DIR) -elfile $(COV_WAIVER_EL) & \
+	else \
+	  echo "Opening DVE without waiver file. Expected path: $(COV_WAIVER_EL)"; \
+	  $(DVE) -cov -dir $(MERGED_COV_DIR) & \
+	fi
 
 # -----------------------------------------------------------------------------
 # Clean targets
@@ -229,6 +256,8 @@ help:
 	@echo "  make sim TESTNAME=smoke_test SEED=1"
 	@echo "  make elab BUILD_NAME=regression"
 	@echo "  make run TESTNAME=smoke_test SEED=1 BUILD_NAME=regression"
+	@echo "  make cov_regression BUILD_NAME=regression_cov REGRESSION_RUN_TIME=10s"
+	@echo "  make view_cov MERGED_COV_DIR=sim/merged_cov.vdb COV_WAIVER_EL=./cov_waivers/dve_waivers.el"
 	@echo "  make regression BUILD_NAME=regression REGRESSION_RUN_TIME=10s"
 	@echo "  make merge_cov MERGED_COV_DIR=sim/merged_cov.vdb"
 	@echo "  make sim TESTNAME=smoke_test SEED=1 DEBUG=1"
@@ -238,8 +267,10 @@ help:
 	@echo "  run          Run existing simv for TESTNAME after checking elab output"
 	@echo "  sim/all      Build and run"
 	@echo "  regression   Run the full regression suite via run_regression.sh"
+	@echo "  cov_regression Clean run/cov/report outputs, run coverage regression, then merge raw coverage"
 	@echo "  verdi        Open waveform in Verdi"
-	@echo "  merge_cov    Merge sim/run/*/cov.vdb into merged_cov.vdb and write HTML report"
+	@echo "  merge_cov    Merge sim/run/*/cov.vdb into raw merged_cov.vdb and write raw HTML report"
+	@echo "  view_cov     Open raw merged coverage in DVE; auto-load COV_WAIVER_EL if present"
 	@echo "  clean        Clean run outputs, merged coverage, and reports"
 	@echo "  clean_run    Clean per-test simulation outputs only"
 	@echo "  clean_cov    Clean merged coverage database"

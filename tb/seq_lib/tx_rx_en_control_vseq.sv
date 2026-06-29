@@ -37,7 +37,10 @@ class tx_rx_en_control_vseq extends apb_spi_base_vseq;
         clear_irq(5'b1_1001);
 
         // {tx_en, rx_en}=2'b01: send one dummy 0x00 frame and receive data.
-        // cont=1 must not auto-continue in receive-only mode.
+        // cont=1 must not auto-continue in receive-only mode. Keep one byte in
+        // TX FIFO so spi_ctrl FRAME_DONE observes
+        // {cfg_cont,cfg_enable,cfg_tx_en,!tx_fifo_empty}=4'b1101.
+        push_tx_byte(8'h7e);
         cfg_spi_mode(1'b0, 1'b0, 1'b1, 1'b1, 1'b0, 1'b1);
         rsp_q.delete();
         rsp_q.push_back(8'hc3);
@@ -48,7 +51,7 @@ class tx_rx_en_control_vseq extends apb_spi_base_vseq;
         join
         wait_for_cs_release();
         wait_for_rx_level(1);
-        check_reg_value("TXFIFO remains empty in receive-only mode", ral().txfifo_lvl, 32'h0);
+        check_reg_value("TXFIFO retained in receive-only mode", ral().txfifo_lvl, 32'h1);
         check_reg_value("RXFIFO has one receive-only byte", ral().rxfifo_lvl, 32'h1);
         pop_rx_byte(rx_byte);
         if (rx_byte !== 8'hc3) begin
@@ -56,6 +59,8 @@ class tx_rx_en_control_vseq extends apb_spi_base_vseq;
                        $sformatf("Receive-only RX mismatch exp=0xc3 act=0x%02h", rx_byte))
         end
         clear_irq(5'b1_1001);
+        write_reg(ral().ctrl, ctrl_mirror | (32'd1 << CTRL_SOFT_RESET_BIT));
+        ctrl_mirror = CTRL_RESET_VALUE;
 
         // {tx_en, rx_en}=2'b10: transmit normally without writing RX FIFO.
         cfg_spi_mode(1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b1);

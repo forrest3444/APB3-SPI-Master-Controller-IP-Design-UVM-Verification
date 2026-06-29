@@ -1,0 +1,108 @@
+# Code coverage waivers.
+# Source of truth for review. Tool-specific waiver exports must keep the same
+# id and vtrack_id.
+
+waivers:
+  - id: WVR-CODE-FIFO-001
+    vtrack_id: VTR-CODE-001
+    status: proposed
+    coverage_type: condition
+    source_file: rtl/sync_fifo.sv
+    report:
+      path: tb/sim/merged_cov_report/mod14.html
+      section: "Cond Coverage for Instance tb_top.dut.u_tx_fifo"
+    scope:
+      module: sync_fifo
+      instance: tb_top.dut.u_tx_fifo
+    location:
+      line: 34
+      expression: "r_en && !empty"
+      uncovered_condition: "r_en=1, !empty=0"
+    title: "TX FIFO defensive empty-read guard"
+    rationale: >
+      A read request while the TX FIFO is empty is blocked by the SPI controller
+      start/continue qualification. The FIFO-local condition represents a
+      defensive guard for illegal upstream behavior, not a functional coverage
+      target.
+    risk: low
+    expiry: "Revisit if tx_fifo_ren generation, TX underflow behavior, or FIFO ownership changes."
+    verification: "Pending manual DVE review and DVE-exported `./cov_waivers/dve_waivers.el`; load it on the raw merged database with `make view_cov`."
+
+  - id: WVR-CODE-FIFO-002
+    vtrack_id: VTR-CODE-002
+    status: proposed
+    coverage_type: condition
+    source_file: rtl/sync_fifo.sv
+    report:
+      path: tb/sim/merged_cov_report/mod14.html
+      section: "Cond Coverage for Instance tb_top.dut.u_rx_fifo"
+    scope:
+      module: sync_fifo
+      instance: tb_top.dut.u_rx_fifo
+    location:
+      line: 33
+      expression: "w_en && !full"
+      uncovered_condition: "w_en=1, !full=0"
+    title: "RX FIFO defensive full-write guard"
+    rationale: >
+      A write request while the RX FIFO is full is blocked by the SPI controller:
+      full RX FIFO raises overflow and suppresses rx_fifo_wen. The FIFO-local
+      condition represents a defensive guard for illegal upstream behavior, not a
+      functional coverage target.
+    risk: low
+    expiry: "Revisit if rx_fifo_wen generation, RX overflow behavior, or FIFO ownership changes."
+    verification: "Pending manual DVE review and DVE-exported `./cov_waivers/dve_waivers.el`; load it on the raw merged database with `make view_cov`."
+
+  - id: WVR-CODE-SPICTRL-001
+    vtrack_id: VTR-CODE-003
+    status: proposed
+    coverage_type: condition
+    source_file: rtl/spi_ctrl.sv
+    report:
+      path: tb/sim/merged_cov_report/mod1.html
+      section: "Cond Coverage for Instance tb_top.dut.u_spi_ctrl"
+    scope:
+      module: spi_ctrl
+      instance: tb_top.dut.u_spi_ctrl
+    location:
+      line: 173
+      expression: "cfg_cont && cfg_enable && cfg_tx_en && !tx_fifo_empty"
+      uncovered_condition: "cfg_cont=1, cfg_enable=0, cfg_tx_en=1, !tx_fifo_empty=1"
+    title: "Continuous-mode continuation while disabled"
+    rationale: >
+      This vector can only occur at the FRAME_DONE continuation decision if
+      software disables CTRL.enable during an active frame. The RTL spec allows
+      soft_reset during an active frame, but requires other CTRL configuration
+      fields to be updated only while the controller is idle. The scenario is
+      therefore outside the architecturally supported stimulus space.
+    risk: low
+    expiry: "Revisit if mid-frame CTRL configuration writes become architecturally defined or if cfg_enable is latched per accepted frame."
+    verification: "Pending manual DVE review and DVE-exported `./cov_waivers/dve_waivers.el`; load it on the raw merged database with `make view_cov`."
+
+  - id: WVR-CODE-SPICTRL-002
+    vtrack_id: VTR-CODE-005
+    status: proposed
+    coverage_type: condition
+    source_file: rtl/spi_ctrl.sv
+    report:
+      path: tb/sim/merged_cov_report/mod1.html
+      section: "Cond Coverage for Instance tb_top.dut.u_spi_ctrl"
+    scope:
+      module: spi_ctrl
+      instance: tb_top.dut.u_spi_ctrl
+    location:
+      line: 110
+      expression: "cfg_enable && cfg_tx_en && tx_fifo_empty"
+      uncovered_condition: "cfg_enable=1, cfg_tx_en=1, tx_fifo_empty=0"
+    title: "Underflow branch with non-empty TX FIFO"
+    rationale: >
+      This condition is evaluated only in the `else if` branch after
+      `can_start` is false. For cfg_enable=1, cfg_tx_en=1, and
+      tx_fifo_empty=0, `can_start` is true and the FSM takes the normal
+      SPI_ST_LOAD path before this underflow condition is evaluated. The vector
+      is therefore unreachable for this specific underflow-branch condition,
+      although the same signal values are legal and covered by normal accepted
+      TX starts.
+    risk: low
+    expiry: "Revisit if start arbitration is refactored or if underflow detection no longer sits behind can_start."
+    verification: "Pending manual DVE review and DVE-exported `./cov_waivers/dve_waivers.el`; load it on the raw merged database with `make view_cov`."

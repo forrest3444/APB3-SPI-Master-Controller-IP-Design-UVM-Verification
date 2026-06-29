@@ -234,7 +234,7 @@ This table contains only normative verification requirements derived from the sp
 | `apb_back_to_back_test` | TC-APB-02 | Legal APB back-to-back reads/writes, consecutive same-direction accesses, and direction changes |
 | `cfg_cross_coverage_test` | TC-SPI-01/03, TC-CONT-01/02 | Closes legal mode/cont/txrx cross-coverage holes |
 | `mode_sweep_test` | TC-SPI-01/02, TC-CONT-02 | Single frame in each SPI mode |
-| `tx_rx_en_control_test` | TC-SPI-03 | All tx_en/rx_en combinations, dummy transmit, RX suppression, and dual-disable no-op |
+| `tx_rx_en_control_test` | TC-SPI-03 | All tx_en/rx_en combinations, dummy transmit, RX suppression, dual-disable no-op, and RX-only `cont=1` with TX FIFO non-empty |
 | `start_rejection_test` | TC-SPI-04 | Accepted start, disabled/dual-disable rejection, underflow, busy ignore, and reset priority |
 | `clkdiv_test` | TC-CLK-01/02 | Divider equation, 0/1/max, random values |
 | `fifo_basic_test` | TC-FIFO-01, TC-CONT-01 | Continuous TX/RX FIFO ordering |
@@ -275,7 +275,7 @@ The basic directed checks for F-REG-05 and F-APB-01 are closed by `pslverr_test`
 | Covergroup | Current content | Limitation |
 | --- | --- | --- |
 | `cfg_cg` | mode, cont, tx/rx enables, cross, coarse CLKDIV; the cross ignores both-disabled tx/rx and receive-only continuous mode | No explicit CLKDIV=0 |
-| `fifo_cg` | TX/RX empty, partial, full | STATUS-read sampling does not prove every transition |
+| `fifo_cg` | Exact TX/RX levels: empty, 1..7, full | Sampled by TXFIFO_LVL/RXFIFO_LVL reads; directed tests still need to hit every intermediate level |
 | `irq_cg` | Occurrence of five IRQ sources | No mask/clear/priority lifecycle |
 | `frame_cg` | Single/multiple frame | Continuous-window frame-count bins need definition |
 

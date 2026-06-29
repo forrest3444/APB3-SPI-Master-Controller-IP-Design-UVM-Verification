@@ -39,6 +39,7 @@ class apb_spi_env extends uvm_env;
 
         if (cfg.enable_scoreboard) begin
             scb = apb_spi_scoreboard::type_id::create("scb", this);
+            uvm_config_db#(apb_spi_env_cfg)::set(this, "scb", "env_cfg", cfg);
         end
 
         if (cfg.enable_coverage) begin

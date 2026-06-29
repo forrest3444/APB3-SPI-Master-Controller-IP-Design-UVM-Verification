@@ -3,6 +3,7 @@ class apb_spi_scoreboard extends uvm_component;
 
     uvm_analysis_imp_apb #(apb_trans, apb_spi_scoreboard) apb_imp;
     uvm_analysis_imp_spi #(spi_frame, apb_spi_scoreboard) spi_imp;
+    apb_spi_env_cfg cfg;
 
     bit [7:0] expected_tx_q[$];
     bit [7:0] expected_rx_q[$];
@@ -29,6 +30,43 @@ class apb_spi_scoreboard extends uvm_component;
         apb_imp = new("apb_imp", this);
         spi_imp = new("spi_imp", this);
     endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if (!uvm_config_db#(apb_spi_env_cfg)::get(this, "", "env_cfg", cfg)) begin
+            `uvm_fatal(get_type_name(), "apb_spi_env_cfg not found")
+        end
+    endfunction
+
+    function void reset_model();
+        expected_tx_q.delete();
+        expected_rx_q.delete();
+        pending_rx_q.delete();
+        cfg_enable          = CTRL_RESET_VALUE[CTRL_ENABLE_BIT];
+        cfg_cpha            = CTRL_RESET_VALUE[CTRL_CPHA_BIT];
+        cfg_cpol            = CTRL_RESET_VALUE[CTRL_CPOL_BIT];
+        cfg_cont            = CTRL_RESET_VALUE[CTRL_CONT_BIT];
+        cfg_rx_en           = CTRL_RESET_VALUE[CTRL_RX_EN_BIT];
+        cfg_tx_en           = CTRL_RESET_VALUE[CTRL_TX_EN_BIT];
+        irq_en              = '0;
+        sticky_irq          = '0;
+        tx_fifo_level       = 0;
+        rx_fifo_level       = 0;
+        last_cs_window      = -1;
+        last_frame_idx      = -1;
+        pending_done        = 1'b0;
+        pending_rx_overflow = 1'b0;
+        transfer_active     = 1'b0;
+    endfunction
+
+    task run_phase(uvm_phase phase);
+        reset_model();
+        forever begin
+            @(negedge cfg.apb_cfg.vif.presetn);
+            reset_model();
+            wait (cfg.apb_cfg.vif.presetn === 1'b1);
+        end
+    endtask
 
     function bit has_pending_frame_updates();
         return pending_done || pending_rx_overflow || (pending_rx_q.size() != 0);

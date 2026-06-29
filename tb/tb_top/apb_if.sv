@@ -14,6 +14,8 @@ interface apb_if (
     logic        irq;
     logic        irq_evt_force_valid;
     logic [2:0]  irq_evt_force_value;
+    logic        presetn_drive_req = 1'b0;
+    logic        presetn_drive_value = 1'b1;
 
     clocking drv_cb @(posedge pclk);
         default input #1step output #0;
@@ -34,6 +36,11 @@ interface apb_if (
         pwdata  = '0;
         irq_evt_force_valid = 1'b0;
         irq_evt_force_value = '0;
+    endtask
+
+    task automatic drive_presetn(bit value);
+        presetn_drive_value = value;
+        presetn_drive_req   = ~presetn_drive_req;
     endtask
 
     task automatic force_irq_event(bit done, bit tx_underflow, bit rx_overflow);
