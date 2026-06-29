@@ -70,6 +70,69 @@ class pslverr_vseq extends apb_spi_base_vseq;
         expect_raw_access(name, 1'b0, addr, '0, 1'b0, 1'b1, exp_rdata);
     endtask
 
+    task automatic expect_unselected_illegal_enable_phase();
+        apb_raw_trans req;
+        bit [31:0]    ctrl_before;
+        bit [31:0]    clkdiv_before;
+        bit [31:0]    irq_en_before;
+        bit [31:0]    tx_level_before;
+        bit [31:0]    rx_level_before;
+
+        read_reg(ral().ctrl,       ctrl_before);
+        read_reg(ral().clkdiv,     clkdiv_before);
+        read_reg(ral().irq_en,     irq_en_before);
+        read_reg(ral().txfifo_lvl, tx_level_before);
+        read_reg(ral().rxfifo_lvl, rx_level_before);
+
+        req = apb_raw_trans::type_id::create("raw_unselected_illegal_enable_phase_write");
+        `uvm_do_on_with(req, p_sequencer.apb_sqr, {
+            raw_mode    == 1'b1;
+            raw_psel    == 1'b0;
+            raw_penable == 1'b1;
+            raw_pwrite  == 1'b1;
+            raw_paddr   == 12'h031;
+            raw_pwdata  == 32'hdeed_beef;
+            raw_cycles  == 1;
+        })
+
+        if (req.ready !== 1'b1) begin
+            `uvm_error(get_type_name(), "Unselected illegal write enable phase did not observe PREADY=1")
+        end
+
+        if (req.slverr !== 1'b0) begin
+            `uvm_error(get_type_name(),
+                       $sformatf("Unselected illegal write enable phase PSLVERR mismatch exp=0 act=%0b",
+                                 req.slverr))
+        end
+
+        req = apb_raw_trans::type_id::create("raw_unselected_illegal_enable_phase_read");
+        `uvm_do_on_with(req, p_sequencer.apb_sqr, {
+            raw_mode    == 1'b1;
+            raw_psel    == 1'b0;
+            raw_penable == 1'b1;
+            raw_pwrite  == 1'b0;
+            raw_paddr   == 12'h031;
+            raw_pwdata  == 32'h0;
+            raw_cycles  == 1;
+        })
+
+        if (req.ready !== 1'b1) begin
+            `uvm_error(get_type_name(), "Unselected illegal read enable phase did not observe PREADY=1")
+        end
+
+        if (req.slverr !== 1'b0) begin
+            `uvm_error(get_type_name(),
+                       $sformatf("Unselected illegal read enable phase PSLVERR mismatch exp=0 act=%0b",
+                                 req.slverr))
+        end
+
+        check_reg_value("CTRL after unselected illegal enable phase",       ral().ctrl,       ctrl_before);
+        check_reg_value("CLKDIV after unselected illegal enable phase",     ral().clkdiv,     clkdiv_before);
+        check_reg_value("IRQ_EN after unselected illegal enable phase",     ral().irq_en,     irq_en_before);
+        check_reg_value("TXFIFO_LVL after unselected illegal enable phase", ral().txfifo_lvl, tx_level_before);
+        check_reg_value("RXFIFO_LVL after unselected illegal enable phase", ral().rxfifo_lvl, rx_level_before);
+    endtask
+
     task body();
         bit [31:0] ctrl_before;
         bit [31:0] clkdiv_before;
@@ -118,5 +181,9 @@ class pslverr_vseq extends apb_spi_base_vseq;
 
         expect_raw_access("TXDATA full write is legal", 1'b1, REG_TXDATA_ADDR, 32'h000000_c3, 1'b0);
         check_reg_value("TXFIFO_LVL after full TXDATA write", ral().txfifo_lvl, 32'h0000_0008);
+
+        if ($test$plusargs("RAW_APB_UNSELECTED")) begin
+            expect_unselected_illegal_enable_phase();
+        end
     endtask
 endclass

@@ -19,8 +19,9 @@ ASSERT     ?= 1
 DEBUG      ?= 0
 
 SIM       ?= sim
+RUN_TAG   ?=
 BUILD_DIR := $(SIM)/build/$(BUILD_NAME)
-RUN_DIR   := $(SIM)/run/$(TESTNAME)_seed_$(SEED)
+RUN_DIR   := $(SIM)/run/$(TESTNAME)_seed_$(SEED)$(RUN_TAG)
 BUILD_LOG_DIR := $(BUILD_DIR)/log
 RUN_LOG_DIR   := $(RUN_DIR)/log
 WAVE_DIR      := $(RUN_DIR)/wave
@@ -32,6 +33,7 @@ MERGED_COV_REPORT_DIR ?= $(SIM)/merged_cov_report
 # is loaded by DVE when reviewing coverage after manual waiver approval.
 COV_WAIVER_EL ?= ./cov_waivers/dve_waivers.el
 REGRESSION_SCRIPT ?= ./run_regression.sh
+REGRESSION_SUITE ?= normal
 REGRESSION_RUN_TIME ?= $(RUN_TIME)
 SIMV_IMAGE := $(SIMV_DIR)/$(TB_TOP).simv
 SIMV_VDB   := $(SIMV_DIR)/$(TB_TOP).simv.vdb
@@ -87,11 +89,13 @@ endif
 
 COV_HIER ?= ./coverage.cfg
 
+COV_METRICS := line+cond+fsm+branch+tgl+assert
+
 ifneq ($(COV),0)
-VCS_OPTS += -cm line+cond+fsm+branch+tgl+assert \
+VCS_OPTS += -cm $(COV_METRICS) \
             -cm_hier $(COV_HIER)                 \
             -cm_name $(BUILD_NAME)
-SIM_COV_OPTS = -cm line+cond+fsm+branch+tgl+assert -cm_dir $(COV_DIR) -cm_name $(BUILD_NAME)
+SIM_COV_OPTS = -cm $(COV_METRICS) -cm_dir $(COV_DIR) -cm_name $(BUILD_NAME)
 endif
 
 ifneq ($(FSDB),0)
@@ -110,7 +114,8 @@ SIM_OPTS = +ntb_random_seed=$(SEED)  \
 ###############################################################################
 # Targets
 ###############################################################################
-.PHONY: all prepare_build prepare_run check_elab elab run sim regression cov_regression \
+.PHONY: all prepare_build prepare_run check_elab elab run sim \
+        regression normal_regression corner_regression all_regression cov_regression \
         verdi merge_cov view_cov \
         clean clean_run clean_cov clean_reports clean_build clean_misc clean_all help
 
@@ -158,10 +163,21 @@ regression:
 	FSDB=$(FSDB)                    \
 	ASSERT=$(ASSERT)                \
 	DEBUG=$(DEBUG)                  \
+	REGRESSION_SUITE=$(REGRESSION_SUITE) \
+	USER_SIM_OPTS="$(USER_SIM_OPTS)" \
 	$(REGRESSION_SCRIPT)
 
+normal_regression:
+	$(MAKE) regression REGRESSION_SUITE=normal
+
+corner_regression:
+	$(MAKE) regression REGRESSION_SUITE=corner
+
+all_regression:
+	$(MAKE) regression REGRESSION_SUITE=all
+
 cov_regression: clean
-	$(MAKE) regression COV=1 FSDB=0 ASSERT=$(ASSERT) DEBUG=$(DEBUG)
+	$(MAKE) regression REGRESSION_SUITE=$(REGRESSION_SUITE) COV=1 FSDB=0 ASSERT=$(ASSERT) DEBUG=$(DEBUG)
 	$(MAKE) merge_cov
 
 verdi:
@@ -257,6 +273,8 @@ help:
 	@echo "  make elab BUILD_NAME=regression"
 	@echo "  make run TESTNAME=smoke_test SEED=1 BUILD_NAME=regression"
 	@echo "  make cov_regression BUILD_NAME=regression_cov REGRESSION_RUN_TIME=10s"
+	@echo "  make corner_regression BUILD_NAME=corner_cov COV=1 FSDB=0"
+	@echo "  make cov_regression REGRESSION_SUITE=all BUILD_NAME=full_cov REGRESSION_RUN_TIME=10s"
 	@echo "  make view_cov MERGED_COV_DIR=sim/merged_cov.vdb COV_WAIVER_EL=./cov_waivers/dve_waivers.el"
 	@echo "  make regression BUILD_NAME=regression REGRESSION_RUN_TIME=10s"
 	@echo "  make merge_cov MERGED_COV_DIR=sim/merged_cov.vdb"
@@ -266,8 +284,11 @@ help:
 	@echo "  elab         Compile and elaborate into sim/build/<BUILD_NAME>"
 	@echo "  run          Run existing simv for TESTNAME after checking elab output"
 	@echo "  sim/all      Build and run"
-	@echo "  regression   Run the full regression suite via run_regression.sh"
-	@echo "  cov_regression Clean run/cov/report outputs, run coverage regression, then merge raw coverage"
+	@echo "  regression   Run run_regression.sh with REGRESSION_SUITE=normal|corner|all"
+	@echo "  normal_regression Run legal spec-compliant regression"
+	@echo "  corner_regression Run abnormal/coverage-closure scenarios with per-scenario options"
+	@echo "  all_regression Run normal suite, then corner scenarios"
+	@echo "  cov_regression Clean run/cov/report outputs, run selected coverage suite, then merge raw coverage"
 	@echo "  verdi        Open waveform in Verdi"
 	@echo "  merge_cov    Merge sim/run/*/cov.vdb into raw merged_cov.vdb and write raw HTML report"
 	@echo "  view_cov     Open raw merged coverage in DVE; auto-load COV_WAIVER_EL if present"
@@ -280,4 +301,4 @@ help:
 	@echo "  clean_all    Wipe sim/ and all generated tool artifacts"
 	@echo ""
 	@echo "Defaults:"
-	@echo "  COV=0 FSDB=0 ASSERT=1 DEBUG=0"
+	@echo "  COV=0 FSDB=0 ASSERT=1 DEBUG=0 REGRESSION_SUITE=normal"

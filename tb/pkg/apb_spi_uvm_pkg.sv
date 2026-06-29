@@ -13,6 +13,7 @@ package apb_spi_uvm_pkg;
     `include "../env/apb_spi_env_cfg.sv"
 
     `include "../agent/apb_agent/apb_trans.sv"
+    `include "../agent/apb_agent/apb_raw_trans.sv"
     `include "../agent/spi_agent/spi_frame.sv"
     `include "../env/apb_spi_vseq_item.sv"
 
@@ -21,6 +22,7 @@ package apb_spi_uvm_pkg;
 
     `include "../agent/apb_agent/apb_sequencer.sv"
     `include "../agent/apb_agent/apb_driver.sv"
+    `include "../agent/apb_agent/apb_raw_driver.sv"
     `include "../agent/apb_agent/apb_monitor.sv"
     `include "../agent/apb_agent/apb_agent.sv"
 

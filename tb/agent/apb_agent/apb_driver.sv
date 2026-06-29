@@ -27,7 +27,7 @@ class apb_driver extends uvm_driver #(apb_trans);
         end
     endtask
 
-    task drive_transfer(apb_trans tr);
+    virtual task drive_transfer(apb_trans tr);
         @(posedge cfg.vif.pclk);
         cfg.vif.drv_cb.psel    <= 1'b1;
         cfg.vif.drv_cb.penable <= 1'b0;
