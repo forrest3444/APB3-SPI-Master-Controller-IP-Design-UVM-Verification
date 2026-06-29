@@ -6,7 +6,7 @@
 
 ## 主要特性
 
-- Always-ready 的 32 位 APB 寄存器接口
+- Always-ready 的 32 位 APB 寄存器接口，非法访问返回 PSLVERR
 - 支持 SPI Mode 0–3、固定 8 位帧和 MSB first
 - 可编程时钟分频与自动片选控制
 - 独立的 8 深度 TX/RX FIFO
@@ -15,13 +15,25 @@
 - 支持硬件复位与软件复位
 - 提供 UVM Agent、RAL、Scoreboard、功能覆盖率和 SVA
 
+## 验证
+
+18 个定向 + 受约束随机测试覆盖全部 28 个规格派生特性。
+两级回归（常规 + 协议负向），默认 ASSERT=1 下 18/18 通过。
+
+| 原始覆盖率 | 豁免后覆盖率 |
+|---|---|
+| ![raw](tb/doc/fig/cov_raw.png) | ![waived](tb/doc/fig/cov_waivered.png) |
+
+- **功能覆盖率**: 4 个 covergroup（cfg、fifo、irq、frame）— P0/P1 100%
+- **代码覆盖率**（仅 DUT）: SCORE 95.53, LINE 99.51, COND 91.87, FSM 100, BRANCH 98.89
+- **Waiver 配套**: vtrack、YAML waiver 源文件、DVE `.el` 文件
+
 ## 目录结构
 
 ```text
 rtl/          可综合 RTL 与设计规格
 tb/           UVM 环境、测试、序列、RAL、覆盖率与断言
-tb/doc/       验证计划
-doc/          工程文档资源
+tb/doc/       验证计划、vtrack、waiver 文件、覆盖率截图
 ```
 
 ## 快速开始
@@ -32,10 +44,13 @@ doc/          工程文档资源
 # 编译并运行冒烟测试
 make -C tb sim TESTNAME=smoke_test SEED=1
 
-# 运行回归测试
-make -C tb regression BUILD_NAME=regression
+# 运行常规回归测试
+make -C tb normal_regression
 
-# 清理仿真生成文件
+# 运行全量回归测试（常规 + corner）
+make -C tb all_regression
+
+# 清理所有仿真生成文件
 make -C tb clean_all
 ```
 
@@ -47,6 +62,8 @@ make -C tb clean_all
 - [设计规格 — 中文](rtl/doc/apb_spi_master_controller_v1_spec_cn.md)
 - [验证计划 — English](tb/doc/VERIFICATION_PLAN_V1_EN.md)
 - [验证计划 — 中文](tb/doc/VERIFICATION_PLAN_V1_CN.md)
+- [覆盖率跟踪 — English](tb/doc/COVERAGE_VTRACK.md)
+- [覆盖率跟踪 — 中文](tb/doc/COVERAGE_VTRACK_CN.md)
 
 ## 许可证
 
